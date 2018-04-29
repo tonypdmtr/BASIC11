@@ -1,0 +1,405 @@
+Release Notes For BASIC11 Version 1.55
+
+From the programmers viewpoint, version 1.55 of BASIC11 has changed very
+little. Three new commands were added that will be described later in this
+document. The majority of the changes made to BASIC11 allow it be easily used
+in a hardware environment other than Motorola's M68HC11EVB. To 'Customize'
+BASIC11 for a particular hardware environment, two areas of the interpreter
+need to be modified.
+
+I/O Routines:
+
+In addition to the I/O vector table that is located at $FFA0, all of the I/O
+routines required by BASIC11 to run in an HC11 EVB, were moved to the end of
+the interpreter. The routines begin at address $FF00 and end at $FF93 (see
+listing).
+
+BASIC11 performs all of its I/O through the routines INBYTE and OUTBYTE. INBYTE
+expects a single character to be returned in the A-accumulator. The OUTBYTE
+routine is entered with a single character contained in the A-accumulator.
+DO NOT CHANGE OR MOVE THE INBYTE AND OUTBYTE ROUTINES!!!
+
+The routines that perform the actual I/O functions by communicating with the
+hardware in a system are called by INBYTE and OUTBYTE through the I/O vector
+table. The I/O vector table consists of 16 entries. The first eight entries may
+be used for input type devices (INPUT #0...INPUT#7). The last eight may be used
+for output type devices (PRINT #0... PRINT #7).
+
+Device #0 (both input and output) is reserved for use as the system console and
+should not be used for other purposes. However, this does not mean that the
+system console must consist of a terminal. It could easily consist of an LCD
+display and membrane keyboard.
+
+As shown in the listing, each entry in the I/O vector table consists of a two
+byte address. These addresses point to the routines that communicate with the
+actual hardware to perform I/O functions on a character by character basis.
+Studying the listing should serve as a guide in writing a 'device driver' for
+any type of I/O hardware.
+
+Environment Variables:
+
+The environment variable table, located at $FFC0, consists of eight entries.
+These allow BASIC11 to determine a number of characteristics about the hardware
+environment it is operating in. Each entry is discussed below describing its
+use or function.
+
+ 7137 FFC0                        org    $ffc0
+ 7138 FFC0 C000         RAMStart  fdb    $c000        starting address of system RAM.
+ 7139 FFC2 2000         RAMSize   fdb    $2000        size of BASIC11 RAM Buffer.
+ 7140 FFC4 6000         EEStart   fdb    $6000        starting address of program storage EEPROM
+ 7141 FFC6 2000         EESize    fdb    $2000        size of the program storage EEPROM
+ 7142 FFC8 1000         IOBase    fdb    $1000        Base Address of the I/O Registers
+ 7143 FFCA F424         TimeVal   fdb    62500        value used for generating 'Time' Interrupt
+ 7144 FFCC FF25         UserInit  fdb    IODevInit    Used to initialize console/other hardware.
+ 7145 FFCE 4000         DFLOPADR  fdb    $4000        Address of flip-flop used to connect the
+ 7146                                                 HC11 SCI to the host port connector.
+
+
+RAMStart
+
+The RAMStart entry consists of a two byte address that must point to an area of
+RAM that BASIC11 may use to store its program and/or variables.
+This RAM may be located anywhere in the memory map above $0100.
+ALL PAGE 0 ADDRESSES ($00 - $FF) ARE RESERVED FOR USE BY BASIC11!!!
+
+RAMSize
+
+The RAMSize entry consists of a 16-bit unsigned integer that tells BASIC11 how
+much RAM is available for its program and/or variables. A minimum suggested
+size for the RAM is approximately 8K bytes.
+
+EEStart
+
+The EEStart entry consists of a two byte address that must point to an area of
+memory that BASIC11 may use to store its program and variables when an ESAVE
+command is executed. This area of memory may consist of EEPROM, as detailed in
+the BASIC11 manual, or even battery backed RAM.
+
+EESize
+
+The EESize entry consists of a 16-bit unsigned integer that tells BASIC11 how
+much non-volatile memory is available for its program and/or variables. The
+volatile memory should be approximately the same size as BASIC11's RAM during
+program development.
+
+IOBase
+
+When an MC68HC11 comes out of reset, all of the I/O and control registers for
+it's on chip peripherals are placed in the memory map starting at address
+$1000. Since this address may interfere with other resources in a system, the
+I/O and control registers may be relocated to any 4K boundary within the memory
+map.
+
+TimeVal
+
+BASIC11 maintains an internal 'clock' that is incremented at a rate that is
+determined partially by the 16-bit unsigned number stored in these two bytes.
+A value of 62500 ($F424) will cause the 'clock' to be incremented once per
+second if the MC68HC11 is running at a 2.0 MHz E-clock (8.0 MHz crystal) rate.
+
+NOTE: When using the 'clock' in conjunction with BASIC11's ONTIME function,
+making the number too small may cause BASIC11 to spend most of its time
+servicing the ONTIME interrupt routine and not executing the main portion of
+the BASIC program. If an ONTIME interrupt routine requires a long time to
+execute, making the number too small may cause BASIC11 to become 'stuck' in the
+interrupt routine.
+
+UserInit
+
+The UserInit entry consists of a two byte address that points to a subroutine
+used to initialize any hardware or devices in the system. The subroutine is
+called after all of BASIC11's internal initialization is finished. As a
+minimum, the subroutine should initialize any hardware associated with the
+console I/O devices. The subroutine need not preserve any of the HC11's
+registers except the stack pointer.
+
+DFLOPADR
+
+If BASIC11 is being used with an MC68HC11EVB Rev 'B' or later this entry should
+be left at address $4000. It allows the HC11's SCI port to be connected to the
+DB-25 connector that is marked 'HOST'. If BASIC11 is being used in any other
+hardware environment, this entry should be set to $FFFF.
+
+A Configuration Example
+
+The following example shows how BASIC11 may be configured for use with a
+typical system.
+
+Resource           Location             Use
+--------           --------             ---
+Volatile RAM       $0000 - $7FFF        Program & Variable storage
+EEPROM             $8000 - $BFFF        ESAVE Program & Variable storage
+
+In addition, the internal 'clock' must have a resolution of 0.1 seconds.
+Since the memory map between $C000 and $DFFF is currently unused, the
+HC11's internal control and I/O registers will be placed at $C000.
+
+          org    $ffc0
+RAMStart  fdb    $0100        starting address of system RAM.
+;                             Remember, $00-$FF is reserved!
+RAMSize   fdb    $7F00        size of BASIC11 RAM Buffer.
+EEStart   fdb    $8000        starting address of program storage EEPROM
+EESize    fdb    $4000        size of the program storage EEPROM
+IOBase    fdb    $C000        Base Address of the I/O Registers
+TimeVal   fdb    6250         value used for generating 'Time' Interrupt
+UserInit  fdb    IODevInit    Used to initialize console/other hardware.
+DFLOPADR  fdb    $FFFF        Address of flip-flop used to connect the HC11 SCI
+*                             to the host port connector.
+
+
+New Commands:
+
+The following new commands were added to version 1.55:
+
+FREE	FREE
+
+The FREE command may be used to Display the amount of RAM memory that is
+currently available for BASIC11 program statements and variables.  The FREE
+command may only be used while BASIC11 is in the command mode (i.e. it may not
+be used in a program statement).
+
+SLEEP	<line number>  SLEEP
+
+	700  SLEEP
+
+The SLEEP statement allows the MC68HC11 to be put into the 'Stop Mode' which is
+its lowest power consumption mode. In the 'Stop Mode', all clocks, including
+the internal oscillator, are stopped and all internal processing is halted.
+Recovery from the SLEEP statement may be accomplished by either a processor
+RESET or an XIRQ interrupt. When an XIRQ interrupt is used, BASIC11 will
+continue execution with the next BASIC program statement. When a hardware RESET
+is used to exit the sleep mode, the action taken by BASIC11 will depend on two
+factors. If the 'Auto Start' flag has been set with the AUTOST command, the
+BASIC program stored in external EEPROM/EPROM will automatically be executed.
+If the 'Auto Start' flag has not been set, BASIC11 will return to the command
+mode.
+
+RTIME	<line number>   RTIME
+
+	10  RTIME
+
+When assigning a value to the TIME system variable (see page 14 of the BASIC11
+manual), BASIC11 will update the value of the TIME variable asynchronously in
+relation to interrupts generated by output compare one (OC1). The RTIME
+statement will reset the entire system time keeping function.
+The RTIME statement may be used to synchronize the system time keeping function
+to some external event.
+
+Note: To maintain accuracy of the system time keeping function, the RTIME
+statement should NOT be used within an ONTIME interrupt routine.
+
+IOPKG  --  Micro Dialects, Inc. uASM-HC11 Assembler   Mon, Sep 24, 1990 1:03 PM -- Page 2
+
+
+ 6982                   *
+ 6983                   *
+ 6984 FED2              OUTBYTE          EQU    *
+ 6985 FED2 7C001E                        INC    PRINTPOS            INCREMENT THE CURRENT PRINT POSITION.
+ 6986 FED5 37                            PSHB                       SAVE THE B-REG.
+ 6987 FED6 3C                            PSHX                       SAVE THE X-REG.
+ 6988 FED7 CE00B4                        LDX    #OUTABLE            POINT TO THE OUTPUT VECTOR TABLE.
+ 6989 FEDA D637         OUTBYTE1         LDAB   DEVNUM              GET THE CURRENT DEVICE NUMBER.
+ 6990 FEDC 58                            ASLB                       MULT BY 2.
+ 6991 FEDD 3A                            ABX                        POINT TO THE ADDRESS OF THE OUTPUT ROUTINE.
+ 6992 FEDE EE00                          LDX    0,X                 GET THE ADDRESS. HAS THE VECTOR BEEN INITALIZED?
+ 6993 FEE0 2608                          BNE    OUTBYTE2            YES. GO OUTPUT THE CHARACTER.
+ 6994 FEE2 7F0037                        CLR    DEVNUM              NO. RESET TO DEVICE #0.
+ 6995 FEE5 8631                          LDAA   #UNINIERR           GO REPORT AN UNINITALIZED I/O VECTOR ERROR.
+ 6996 FEE7 7EEAEF                        JMP    RPTRERR
+ 6997 FEEA AD00         OUTBYTE2         JSR    0,X                 GO OUTPUT THE CHARACTER.
+ 6998 FEEC 38                            PULX                       RESTORE X.
+ 6999 FEED 33                            PULB                       RESTORE B.
+ 7000 FEEE 39                            RTS                        RETURN.
+ 7001                   *
+ 7002 FEEF              INBYTE           EQU    *
+ 7003 FEEF 37                            PSHB                       SAVE THE B-REG.
+ 7004 FEF0 3C                            PSHX                       SAVE THE X-REG.
+ 7005 FEF1 CE00A4                        LDX    #INTABLE            POINT TO THE INPUT VECTOR TABLE.
+ 7006 FEF4 20E4                          BRA    OUTBYTE1            GO USE THE SAME CODE AS OUTBYTE.
+ 7007                   *
+ 7008                   *
+ 7009 0000                               if     *>$FF00
+ 7011                                    endif
+ 7012                   *
+ 7013                   *
+ 7014 FF00                               ORG    $FF00
+ 7015                   *
+ 7016                   *
+ 7017 FF00 8D0D         ACIAIN           BSR    ACIAINNE            GO GET CHARACTER FROM ACIA, NO ECHO.
+ 7018                   *                            NOW, FALL THROUGH TO ACIAOUT TO ECHO CHARACTER.
+ 7019                   *
+ 7020                   *
+ 7021 FF02 36           ACIAOUT          PSHA                       SAVE THE CHARACTER TO OUTPUT.
+ 7022 FF03 B69800       ACIAOUT1         LDAA   ACIAST              GET THE ACIA STATUS.
+ 7023 FF06 8502                          BITA   #$02                IS THE XMIT DATA REGISTER EMPTY?
+ 7024 FF08 27F9                          BEQ    ACIAOUT1            NO. WAIT TILL IT IS.
+ 7025 FF0A 32                            PULA                       YES. GET BYTE TO SEND.
+ 7026 FF0B B79801                        STAA   ACIADT              SEND IT.
+ 7027 FF0E 39                            RTS                        RETURN.
+ 7028                   *
+ 7029                   *
+ 7030                   *
+ 7031                   *
+ 7032                   *
+ 7033                   *
+ 7034 FF0F B69800       ACIAINNE         LDAA   ACIAST              GET THE ACIA STATUS.
+ 7035 FF12 8501                          BITA   #$01                HAS A CHARACTER BEEN RECIEVED?
+ 7036 FF14 27F9                          BEQ    ACIAINNE            NO. WAIT TILL WE HAVE ONE.
+ 7037 FF16 B69801                        LDAA   ACIADT              YES. GET THE CHARACTER.
+ 7038 FF19 39                            RTS                        RETURN.
+ 7039                   *
+ 7040 FF1A              ACIASTAT         EQU    *
+ 7041 FF1A 36                            PSHA                       SAVE THE A-REG.
+ 7042 FF1B B69800                        LDAA   ACIAST              GET THE ACIA STATUS.
+ 7043 FF1E 8501                          BITA   #$01                CHECK FOR A CHARACTER.
+ 7044 FF20 32                            PULA                       RESTORE A.
+ 7045 FF21 39                            RTS                        RETURN.
+ 7046                   *
+ 7047                   *
+ 7048 FF22              SCIIN            EQU    *
+ 7049 FF22 3C                            PSHX                       Save the index register.
+ 7050 FF23 DE61                          LDX    IOBaseV
+ 7051 FF25 A62E         SCIIN1           LDAA   SCSR,X              GET SCI STATUS.
+ 7052 FF27 8420                          ANDA   #$20                HAS A CHARACTER BEEN RECIEVED?
+ 7053 FF29 27FA                          BEQ    SCIIN1              NO. WAIT FOR CHARACTER TO BE RECIEVED.
+ 7054 FF2B A62F                          LDAA   SCDR,X              GET THE CHARACTER.
+ 7055 FF2D 38                            PULX                       Restore X.
+ 7056 FF2E 39                            RTS                        RETURN.
+ 7057                   *
+ 7058                   *
+ 7059 FF2F              SCIOUT           EQU    *
+ 7060 FF2F 3C                            PSHX                       Save the index register.
+ 7061 FF30 DE61                          LDX    IOBaseV
+ 7062 FF32 36                            PSHA                       SAVE THE CHARACTER TO SEND.
+ 7063 FF33 A62E         SCIOUT1          LDAA   SCSR,X              GET THE SCI STATUS.
+ 7064 FF35 8580                          BITA   #$80                HAS THE LAST CHARACTER BEEN SHIFTED OUT?
+ 7065 FF37 27FA                          BEQ    SCIOUT1             NO. WAIT TILL IT HAS.
+ 7066 FF39 32                            PULA                       RESTORE CHARACTER TO SEND.
+ 7067 FF3A A72F                          STAA   SCDR,X              SEND THE CHARACTER.
+ 7068 FF3C 38                            PULX                       Restore X.
+ 7069 FF3D 39                            RTS                        RETURN.
+ 7070                   *
+ 7071                   *
+ 7072 FF3E              SCISTAT          EQU    *
+ 7073 FF3E 3C                            PSHX                       Save the index register.
+ 7074 FF3F DE61                          LDX    IOBaseV
+ 7075 FF41 36                            PSHA                       SAVE THE A-REG.
+ 7076 FF42 A62E                          LDAA   SCSR,X              GET THE SCI STATUS.
+ 7077 FF44 8520                          BITA   #$20                CHECK TO SEE IF A CHARACTER HAS BEEN RECIEVED.
+ 7078 FF46 32                            PULA                       RESTORE STATUS.
+ 7079 FF47 38                            PULX                       Restore X.
+ 7080 FF48 39                            RTS                        RETURN W/ STATUS.
+ 7081                   *
+ 7082                   *
+ 7083 FF49              IODevInit:
+ 7084 FF49 8D2A                          BSR    InitACIA
+ 7085 FF4B 8D11                          BSR    InitSCI
+ 7086 FF4D 867E                          LDAA   #JMPOP
+ 7087 FF4F 979E                          STAA   CONSTAT             INITIALIZE THE CONSOLE STATUS VECTOR.
+ 7088 FF51 97A1                          STAA   INCONNE             INITIALIZE THE "INPUT FROM CONSOLE NO ECHO VECT.
+ 7089 FF53 CCFF1A                        LDD    #ACIASTAT           CONSOLE IS INITIALLY THE ACIA.
+ 7090 FF56 DD9F                          STD    CONSTAT+1
+ 7091 FF58 CCFF0F                        LDD    #ACIAINNE           GET BYTE FROM ACIA, DON'T ECHO IT.
+ 7092 FF5B DDA2                          STD    INCONNE+1
+ 7093 FF5D 39                            RTS
+ 7094                   *
+ 7095                   *
+ 7096 FF5E              INITSCI          EQU    *
+ 7097 FF5E 3C                            PSHX                       Save the index register.
+ 7098 FF5F DE61                          LDX    IOBaseV
+ 7099 FF61 8630                          LDAA   #$30                SET BAUD RATE TO 9600.
+ 7100 FF63 A72B                          STAA   BAUD,X
+ 7101 FF65 6F2C                          CLR    SCCR1,X             SET FOR 8 BIT OPERATION, DISABLE WAKEUP.
+ 7102 FF67 860C                          LDAA   #$0C                ENABLE THE TRANSMITER & RECEIVER.
+ 7103 FF69 A72D                          STAA   SCCR2,X
+ 7104 FF6B 8611                          LDAA   #$11                GET THE XON CHARACTER (CONTROL-Q).
+ 7105 FF6D 9743                          STAA   XONCH               INITALIZE THE XON REGISTER.
+ 7106 FF6F 8613                          LDAA   #$13                GET THE XOFF CHARACTER (CONTROL-S).
+ 7107 FF71 9744                          STAA   XOFFCH              INITALIZE THE XOFF CHARACTER.
+ 7108 FF73 38                            PULX
+ 7109 FF74 39                            RTS                        RETURN.
+ 7110                   *
+ 7111                   *
+ 7112 FF75 8613         INITACIA         LDAA   #$13                VALUE TO RESET THE ACIA.
+ 7113 FF77 B79800                        STAA   ACIAST              RESET IT.
+ 7114 FF7A 8656                          LDAA   #$56                SET /64, RTS=HI, 8-DATA/1 STOP
+ 7115 FF7C B79800                        STAA   ACIAST
+ 7116 FF7F 39                            RTS                        RETURN.
+ 7117                   *
+ 7118                   *
+ 7119                   *
+ 7120 FF80              PROUT            EQU    *                   SEND A CHARACTER TO THE PRINTER.
+ 7121 FF80 8DBC                          BSR    SCISTAT             WAS AN "X-OFF" RECIEVED?
+ 7122 FF82 270E                          BEQ    PROUT1              NO. GO SEND THE CHARACTER.
+ 7123 FF84 36                            PSHA                       SAVE THE CHARACTER TO SEND.
+ 7124 FF85 8D9B                          BSR    SCIIN               YES. GO RESET THE SCI RECEIVER STATUS.
+ 7125 FF87 9144                          CMPA   XOFFCH              WAS IT AN XOFF?
+ 7126 FF89 2606                          BNE    PROUT2              NO. SO GO SEND THE CHARACTER.
+ 7127 FF8B 8D95         PROUT3           BSR    SCIIN               GO WAIT FOR AN "X-ON" CHARACTER.
+ 7128 FF8D 9143                          CMPA   XONCH               IS IT AN X-ON CHARACTER?
+ 7129 FF8F 26FA                          BNE    PROUT3              NO. GO WAIT FOR AN X-ON CHARACTER.
+ 7130 FF91 32           PROUT2           PULA                       GET THE CHARACTER TO SEND.
+ 7131 FF92 209B         PROUT1           BRA    SCIOUT              SEND THE CHARACTER TO THE PRINTER & RETURN.
+ 7132                   *
+ 7133                   *
+ 7134                                    Include 'VECTORS.Asm'
+ 7135                                    ttl    Config/Reset/Interrupt Vectors
+ 7137 0000                               if     *>$ffa0
+ 7139                                    endif
+ 7140                   *
+ 7141                   *
+ 7142                   *
+ 7143 FFA0                               org    $ffa0
+ 7144 FFA0 FF00         IOVects          fdb    ACIAIN
+ 7145 FFA2 FF22                          fdb    SCIIN
+ 7146 FFA4 0000                          fdb    0
+ 7147 FFA6 0000                          fdb    0
+ 7148 FFA8 0000                          fdb    0
+ 7149 FFAA 0000                          fdb    0
+ 7150 FFAC 0000                          fdb    0
+ 7151 FFAE 0000                          fdb    0
+ 7152 FFB0 FF02                          fdb    ACIAOUT
+ 7153 FFB2 FF80                          fdb    PROUT
+ 7154 FFB4 0000                          fdb    0
+ 7155 FFB6 0000                          fdb    0
+ 7156 FFB8 0000                          fdb    0
+ 7157 FFBA 0000                          fdb    0
+ 7158 FFBC 0000                          fdb    0
+ 7159 FFBE 0000                          fdb    0
+ 7160                   *
+ 7161                   *
+ 7162 FFC0                               org    $ffc0
+ 7163 FFC0 C000         RAMStart         fdb    $c000               starting address of system RAM.
+ 7164 FFC2 2000         RAMSize          fdb    $2000               size of BASIC11 RAM Buffer.
+ 7165 FFC4 6000         EEStart          fdb    $6000               starting address of program storage EEPROM
+ 7166 FFC6 2000         EESize           fdb    $2000               size of the program storage EEPROM
+ 7167 FFC8 1000         IOBase           fdb    $1000               Base Address of the I/O Registers
+ 7168 FFCA F424         TimeVal          fdb    62500               value used for generating 'Time' Interrupt
+ 7169 FFCC FF49         UserInit         fdb    IODevInit           Used to initialize console/other hardware.
+ 7170 FFCE 4000         DFLOPADR         fdb    $4000               ; Address of flip-flop used to connect the HC11 SCI
+ 7171                                                               ; to the host port connector.
+ 7172                   ;
+ 7173                   ;
+ 7174
+ 7175 FFD6                               ORG    ROMBEG+ROMSIZE-(21*2) START OF VECTOR TABLE.
+ 7176 FFD6 00C4                          FDB    SCISS               SCI SERIAL SYSTEM
+ 7177 FFD8 00C7                          FDB    SPITC               SPI TRANSFER COMPLETE
+ 7178 FFDA 00CA                          FDB    PACCIE              PULSE ACCUMULATOR INPUT EDGE
+ 7179 FFDC 00CD                          FDB    PACCOVF             PULSE ACCUMULATOR OVERFLOW
+ 7180 FFDE 00D0                          FDB    TIMEROVF            TIMER OVERFLOW
+ 7181 FFE0 00D3                          FDB    TOC5                TIMER OUTPUT COMPARE 5
+ 7182 FFE2 00D6                          FDB    TOC4                TIMER OUTPUT COMPARE 4
+ 7183 FFE4 00D9                          FDB    TOC3                TIMER OUTPUT COMPARE 3
+ 7184 FFE6 00DC                          FDB    TOC2                TIMER OUTPUT COMPARE 2
+ 7185 FFE8 00DF                          FDB    TOC1                TIMER OUTPUT COMPARE 1
+ 7186 FFEA 00E2                          FDB    TIC3                TIMER INPUT CAPTURE 3
+ 7187 FFEC 00E5                          FDB    TIC2                TIMER INPUT CAPTURE 2
+ 7188 FFEE 00E8                          FDB    TIC1                TIMER INPUT CAPTURE 1
+ 7189 FFF0 00EB                          FDB    REALTIMI            REAL TIME INTERRUPT
+ 7190 FFF2 00EE                          FDB    IRQI                IRQ INTERRUPT
+ 7191 FFF4 00F1                          FDB    XIRQ                XIRQ INTERRUPT
+ 7192 FFF6 00F4                          FDB    SWII                SOFTWARE INTERRUPT
+ 7193 FFF8 00F7                          FDB    ILLOP               ILLEGAL OPCODE TRAP
+ 7194 FFFA 00FA                          FDB    COP                 WATCH DOG FAIL
+ 7195 FFFC 00FD                          FDB    CMF                 CLOCK MONITOR FAIL
+ 7196 FFFE ED77                          FDB    POWERUP             RESET
