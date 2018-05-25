@@ -16,10 +16,9 @@
 ; 6. Corrected case for a few symbols, so it also compiles with case-sensitivity
 ; 7. Replaced some instruction sequences with ASM11 internal macros for clarity
 ; 8. Added CRC verification display message at the end of this file
-; 9. Slowly converting to 100% ASM11 syntax [WORK-IN-PROGRESS]
+; 9. Slowly converting to 100% ASM11 idiomatic syntax [WORK-IN-PROGRESS]
 ;
 ;===============================================================================
-;
 ; I have had many, many requests from M68HC11 users over the
 ; years for the source code for BASIC11. I was very reluctant to
 ; release the source code for a number of reasons. First, because
@@ -44,9 +43,16 @@
 ;
 ; Regards,
 ; Gordon Doughman
-;
 ;===============================================================================
 
+#ifdef ?
+  #Hint +===================================================
+  #Hint | Available conditionals (for use with -Dx option)
+  #Hint +===================================================
+  #Hint | BUGFIX: Fix any known bugs
+  #Hint +===================================================
+  #Fatal Run ASM11 -Dx (where x is any of the above)
+#endif
                     #Macro
                     #SpacesOff
                     #ExtraOn
@@ -81,55 +87,30 @@ BUS_KHZ             def       2000
 ;
 ;                   OPT       NOL
 
-HC11                equ       1
+HC11                def       1
 
 ;                   include   'defines.inc'
                     title     DEFINES
 
-          #ifnz HC11
-
-;***** HC11EVB defines *****/
-
+          #ifnz HC11                              ;HC11EVB defines
 ROMBEG              equ       $E000
-ROMSIZE             equ       $2000
 ACIAST              equ       $9800
-ACIADT              equ       ACIAST+1
-DFLOP               equ       $4000
-SWPRE               equ       02                  ; SOFTWARE PRESCALER VALUE.
-
-SBASBEG             equ       0
-SBASEND             equ       2
-SVARBEG             equ       4
-SVAREND             equ       6
-SHILINE             equ       8
-AUTOSTF             equ       10
-SSTART              equ       11
-
-          #else
-
-;***** 6809/FLEX development defines *****/
-
+          #else                                   ;6809/FLEX development defines
 ROMBEG              equ       $8000
-ROMSIZE             equ       $2000
-RAMBEG              equ       $4000
-RAMSIZE             equ       $2000
-STACKP              equ       RAMBEG+RAMSIZE-1
-SWSTACK             equ       RAMBEG+RAMSIZE-512
 ACIAST              equ       $E010
-ACIADT              equ       ACIAST+1
-
-                    org       $6000
-
-SEEPROM             equ       *
-SBASBEG             rmb       2
-SBASEND             rmb       2
-SVARBEG             rmb       2
-SVAREND             rmb       2
-AUTOSTF             rmb       1
-SHILINE             rmb       2
-SSTART              equ       *
-
           #endif
+ROMSIZE             equ       $2000
+ACIADT              equ       ACIAST+1
+SWPRE               equ       2                   ; SOFTWARE PRESCALER VALUE.
+
+                    #temp
+                    next      :temp,2             ;SBASBEG
+SBASEND             next      :temp,2
+SVARBEG             next      :temp,2
+SVAREND             next      :temp,2
+                    next      :temp,2             ;SHILINE
+AUTOSTF             next      :temp
+SSTART              next      :temp
 
 ;***** hc11 (device dependant) defines *****/
 
@@ -171,14 +152,14 @@ EOL                 equ       13                  ; end of line marker
 CR                  equ       13                  ; same as EOL
 LF                  equ       10                  ; linefeed character
 BS                  equ       8                   ; backspace character
-SPC                 equ       32                  ; space character
+SPC                 equ       ' '                 ; space character
 MIDEOL              equ       ':'                 ; mid EOL character
 COMMA               equ       ','                 ; comma
 SEMI                equ       ';'                 ; semicolon
 NUM                 equ       1                   ; getvar return flag
 STRING              equ       2                   ; getvar return flag
 NULL                equ       0                   ; null value
-CNTRLC              equ       3                   ; control-c (break character)
+CTRL_C              equ       3                   ; control-c (break character)
 
 IBUFLEN             equ       80                  ; input buffer max length
 TBUFLEN             equ       128                 ; token buffer max length
@@ -192,63 +173,64 @@ GOSLEN              equ       16                  ; GOSUB stack length
 
 ;***** define error codes *****/
 
-LINRANG             equ       1                   ; line number range error
-SYTXERR             equ       2                   ; syntax error
-IVEXPERR            equ       3                   ; invalid expression error
-UPARNERR            equ       4                   ; unbalanced parentheses error
-DTMISERR            equ       5                   ; data type mismatch error
-OPRTRERR            equ       6                   ; illegal operator error
-ILVARERR            equ       7                   ; illegal variable error
-ILTOKERR            equ       8                   ; illegal token error
-OMEMERR             equ       9                   ; out of memory error
-INTOVERR            equ       10                  ; integer overflow error
-IVHEXERR            equ       11                  ; invalid hex digit error
-HEXOVERR            equ       12                  ; hex number overflow
-MISQUERR            equ       13                  ; missing quote error
-MPARNERR            equ       14                  ; missing open or closing parenthisis
-IONSYERR            equ       15                  ; "ON" syntax error
-MTHENERR            equ       16                  ; missing "THEN" in "IF" statement
-MTOERR              equ       17                  ; missing "TO" in "FOR" statement
-LINENERR            equ       18                  ; line number error
-IDTYERR             equ       19                  ; illegal data type error
-EXPCXERR            equ       20                  ; expression too complex (xlator token buff ovf.)
-MCOMAERR            equ       21                  ; missing comma
-MCMSMERR            equ       22                  ; missing comma or semicolon
-MSTKOERR            equ       23                  ; math stack overflow error
-UNDIMERR            equ       24                  ; undimentioned array error
-SUBORERR            equ       25                  ; subscript out of range error
-ZDIVERR             equ       26                  ; divide by zero error
-LNFERR              equ       27                  ; line not found error
-GOSOVERR            equ       28                  ; too many nested GOSUB's
-RWOGERR             equ       29                  ; RETURN w/o GOSUB error
-WHSOVERR            equ       30                  ; too many active WHILE's
-ENDWHERR            equ       31                  ; ENDWH statement w/o WHILE
-ONARGERR            equ       32                  ; ON argument is negative, zero, or too large
-NOSUBERR            equ       33                  ; non-subscriptable variable found in DIM statem.
-REDIMERR            equ       34                  ; variable has already been DIMensioned
-FORNXERR            equ       35                  ; too many active FOR -- NEXT loops active
-MFRNXERR            equ       36                  ; mismatched FOR -- NEXT statements.
-CNTCNERR            equ       37                  ; can't continue
-ODRDERR             equ       38                  ; out of data in read or restore statement
-NEGSUBER            equ       39                  ; negative subscripts not allowed
-EESUBERR            equ       40                  ; EEP() subscript negative or > 200
-PRFUNERR            equ       41                  ; function only allowed in print statement
-TABARGER            equ       42                  ; argument <0 or >255 in TAB() function
-CHRARGER            equ       43                  ; argument <0 or >255 in CHR$() function
-OVDV0ERR            equ       44                  ; overflow or /0 error in FDIV() function
-INVCHERR            equ       45                  ; invalid channel number in ADC() function
-PRTASERR            equ       46                  ; tried to assign a value <0 or >255 to PORT(X)
-ILPRTERR            equ       47                  ; illegal port error
-ILLIOERR            equ       48                  ; illegal I/O vector number <0 or >7
-UNINIERR            equ       49                  ; uninitalized I/O vector
-HEX2AERR            equ       50                  ; argument <0 or >255 in HEX2 function
-NOTALERR            equ       51                  ; statement not allowed in direct mode
-NOTINTER            equ       52                  ; an RETI statement executed when not in interrupt
-PACCARGE            equ       53                  ; tried to assign a value of <0 or >255 to PACC
-INTMODER            equ       54                  ; interrupt or count mode error in ONPACC
-EETOSMAL            equ       55                  ; program storage EEPROM is Too Small
+                    #temp     1
+LINRANG             next      :temp               ; line number range error
+SYTXERR             next      :temp               ; syntax error
+IVEXPERR            next      :temp               ; invalid expression error
+UPARNERR            next      :temp               ; unbalanced parentheses error
+DTMISERR            next      :temp               ; data type mismatch error
+OPRTRERR            next      :temp               ; illegal operator error
+ILVARERR            next      :temp               ; illegal variable error
+ILTOKERR            next      :temp               ; illegal token error
+OMEMERR             next      :temp               ; out of memory error
+INTOVERR            next      :temp               ; integer overflow error
+IVHEXERR            next      :temp               ; invalid hex digit error
+HEXOVERR            next      :temp               ; hex number overflow
+MISQUERR            next      :temp               ; missing quote error
+MPARNERR            next      :temp               ; missing open or closing parenthisis
+IONSYERR            next      :temp               ; "ON" syntax error
+MTHENERR            next      :temp               ; missing "THEN" in "IF" statement
+MTOERR              next      :temp               ; missing "TO" in "FOR" statement
+LINENERR            next      :temp               ; line number error
+IDTYERR             next      :temp               ; illegal data type error
+EXPCXERR            next      :temp               ; expression too complex (xlator token buff ovf.)
+MCOMAERR            next      :temp               ; missing comma
+MCMSMERR            next      :temp               ; missing comma or semicolon
+MSTKOERR            next      :temp               ; math stack overflow error
+UNDIMERR            next      :temp               ; undimentioned array error
+SUBORERR            next      :temp               ; subscript out of range error
+ZDIVERR             next      :temp               ; divide by zero error
+LNFERR              next      :temp               ; line not found error
+GOSOVERR            next      :temp               ; too many nested GOSUB's
+RWOGERR             next      :temp               ; RETURN w/o GOSUB error
+WHSOVERR            next      :temp               ; too many active WHILE's
+ENDWHERR            next      :temp               ; ENDWH statement w/o WHILE
+ONARGERR            next      :temp               ; ON argument is negative, zero, or too large
+NOSUBERR            next      :temp               ; non-subscriptable variable found in DIM statem.
+REDIMERR            next      :temp               ; variable has already been DIMensioned
+FORNXERR            next      :temp               ; too many active FOR -- NEXT loops active
+MFRNXERR            next      :temp               ; mismatched FOR -- NEXT statements.
+CNTCNERR            next      :temp               ; can't continue
+ODRDERR             next      :temp               ; out of data in read or restore statement
+NEGSUBER            next      :temp               ; negative subscripts not allowed
+EESUBERR            next      :temp               ; EEP() subscript negative or > 200
+PRFUNERR            next      :temp               ; function only allowed in print statement
+TABARGER            next      :temp               ; argument <0 or >255 in TAB() function
+CHRARGER            next      :temp               ; argument <0 or >255 in CHR$() function
+OVDV0ERR            next      :temp               ; overflow or /0 error in FDIV() function
+INVCHERR            next      :temp               ; invalid channel number in ADC() function
+PRTASERR            next      :temp               ; tried to assign a value <0 or >255 to PORT(X)
+ILPRTERR            next      :temp               ; illegal port error
+ILLIOERR            next      :temp               ; illegal I/O vector number <0 or >7
+UNINIERR            next      :temp               ; uninitalized I/O vector
+HEX2AERR            next      :temp               ; argument <0 or >255 in HEX2 function
+NOTALERR            next      :temp               ; statement not allowed in direct mode
+NOTINTER            next      :temp               ; an RETI statement executed when not in interrupt
+PACCARGE            next      :temp               ; tried to assign a value of <0 or >255 to PACC
+INTMODER            next      :temp               ; interrupt or count mode error in ONPACC
+EETOSMAL            next      :temp               ; program storage EEPROM is Too Small
 
-; *mathematical operator tokens
+; mathematical operator tokens
 
 OPARNTOK            equ       $10                 ; '('
 CPARNTOK            equ       $11                 ; ')'
@@ -272,7 +254,7 @@ INDIRTOK            equ       $70                 ; '@'
 NOTTOK              equ       $71                 ; 'NOT'
 NEGTOK              equ       $72                 ; '-' (uniary minus)
 
-; *keyword tokens
+; keyword tokens
 
 LETTOK              equ       $01                 ; LET
 IMLETTOK            equ       $02                 ; implied LET
@@ -317,7 +299,7 @@ THENTOK             equ       $38                 ; THEN
 ELSETOK             equ       $39                 ; ELSE
 STEPTOK             equ       $3A                 ; STEP
 
-; *function tokens
+; function tokens
 
 FDIVTOK             equ       $01                 ; FDIV
 CHRTOK              equ       $02                 ; CHR$
@@ -339,7 +321,7 @@ FTIMETOK            equ       $11                 ; TIME
 HEX2TOK             equ       $12                 ; HEX2
 FPACCTOK            equ       $13                 ; PACC
 
-; *numerical/variable tokens
+; numerical/variable tokens
 
 FVARTOK             equ       $81                 ; floating point variable address
 SVARTOK             equ       $82                 ; string variable address
@@ -359,7 +341,7 @@ SSIZ                equ       3                   ; number of bytes in string va
 FSIZ                equ       5                   ; number of bytes in f.p. variable
 ASIZ                equ       2                   ; number of bytes for array variable in dictionary
 
-; *misc. tokens
+; misc. tokens
 
 MSCNTOK             equ       $7F                 ; multiple space count token
 SSCNTOK             equ       $7E                 ; single space token
@@ -374,6 +356,7 @@ JMPOP               equ       $7E                 ; OP-CODE FOR "JMP" (USED TO I
 
 ;         *********** define variables ***********
 
+                    #RAM
                     org       $0000
 
 ;               char
@@ -401,7 +384,7 @@ INTPTR              rmb       2                   ; integer pointer
 ;               short
 
 ERRCODE             rmb       1                   ; error code status byte
-IMMID               rmb       1                   ; immidiate mode flag
+IMMED               rmb       1                   ; immediate mode flag
 BREAKCNT            equ       *                   ; also use for break check count
 COUNT               equ       *                   ; count used in ESAVE & ELOAD routines
 IFWHFLAG            rmb       1                   ; translating IF flag
@@ -451,22 +434,18 @@ SUBMAX              rmb       2                   ;
 SUBCNT              rmb       2                   ;
 TOKPTR              rmb       2                   ; token pointer (used for list command)
 VarSize             rmb       2                   ; used by the line editor. size of the variable table
-
           #if * > $9E
-                    #Fatal    "Ran out of Page 0 RAM"
+                    #Fatal    Ran out of Page 0 RAM
           #endif
-
                     org       $009E
 
 CONSTAT             rmb       3                   ; GET CONSOLE STATUS FOR BREAK ROUTINE.
 INCONNE             rmb       3                   ; GET BYTE DIRECTLY FROM CONSOLE FOR BREAK ROUTINE.
 
-                    org       $00A4
-
 INTABLE             rmb       16                  ; RESERVE SPACE FOR 8 DIFFERENT INPUT ROUTINES.
 OUTABLE             rmb       16                  ; RESERVE SPACE FOR 8 DIFFERENT OUTPUT ROUTINES.
 
-                    org       $00C4               ; START OF RAM INTERRUPT VECTORS.
+; START OF RAM INTERRUPT VECTORS.
 
 RAMVECTS            equ       *
 SCISS               rmb       3                   ; SCI SERIAL SYSTEM.
@@ -490,21 +469,22 @@ ILLOP               rmb       3                   ; ILLEGAL OPCODE TRAP.
 COP                 rmb       3                   ; WATCH DOG TIMER FAIL.
 CMF                 rmb       3                   ; CLOCK MONITOR FAIL.
 ;                   include   'basiclb1.mod'
+                    #ROM
                     org       ROMBEG
                     title     BASICLB1
-;******************************************************************************
-;                                                                            *
-;                      MC68HC11 BASIC INTERPRETER                            *
-;                                                                            *
-;                             WRITTEN BY:                                    *
-;                                                                            *
-;                           GORDON DOUGHMAN                                  *
-;                                                                            *
-;                        COPYRIGHT 1985-1990 BY                              *
-;                                                                            *
-;                           GORDON DOUGHMAN                                  *
-;                                                                            *
-;******************************************************************************
+;*******************************************************************************
+;                                                                              *
+;                      MC68HC11 BASIC INTERPRETER                              *
+;                                                                              *
+;                             WRITTEN BY:                                      *
+;                                                                              *
+;                           GORDON DOUGHMAN                                    *
+;                                                                              *
+;                        COPYRIGHT 1985-1990 BY                                *
+;                                                                              *
+;                           GORDON DOUGHMAN                                    *
+;                                                                              *
+;*******************************************************************************
 ;
 ;
 ;
@@ -518,23 +498,24 @@ CMF                 rmb       3                   ; CLOCK MONITOR FAIL.
 
                     jmp       POWERUP
 
-MAIN                equ       *
-MAINC               jsr       INITVARS            ; INITALIZE ALL INTERNAL VARIABLES.
+;*******************************************************************************
+
+MAIN                proc
+                    jsr       INITVARS            ; INITALIZE ALL INTERNAL VARIABLES.
                     ldx       EEStart
                     lda       AUTOSTF,x           ; get the auto start flag.
                     cmpa      #$55
-                    bne       MAIN9
+                    bne       NormalStart@@
                     cli                           ; ALLOW ALL INTERRUPTS TO BE SERVICED.
                     jsr       CRUN
-MAIN9               jsr       OUTHEADR            ; PRINT HEADER.
+NormalStart@@       jsr       OUTHEADR            ; PRINT HEADER.
 MAINW               equ       *
-MAIN2               ldd       RAMStart            ; RESET STACK VALUE.
+Loop@@              ldd       RAMStart            ; RESET STACK VALUE.
                     addd      RAMSize
                     xgdx
                     txs
                     cli                           ; (J.I.C.)
-                    clra                          ; CLEAR D.
-                    clrb
+                    clrd
                     std       TIMECMP             ; DON'T ALLOW "ONTIME" INTERRUPTS TO OCCUR.
                     std       ONIRQLIN            ; DON'T ALLOW "ONIRQ" INTERRUPTS TO OCCUR.
                     std       ONPACLIN            ; DON'T ALLOW "PACC" INTERRUPTS TO OCCUR.
@@ -552,8 +533,7 @@ MAIN2               ldd       RAMStart            ; RESET STACK VALUE.
 ; }
 ; *}
 
-MAIN1               equ       *
-                    clr       IMMID               ; CLEAR THE IMMIDIATE MODE FLAG.
+Prompt@@            clr       IMMED               ; CLEAR THE IMMEDIATE MODE FLAG.
                     clr       ERRCODE             ; CLEAR THE ERROR CODE BYTE.
                     clr       RUNFLAG             ; CLEAR THE RUN MODE FLAG.
                     jsr       OUTPRMPT            ; SEND PROMPT TO CONSOLE.
@@ -561,21 +541,22 @@ MAIN1               equ       *
                     jsr       SKIPSPCS            ; SKIP ANY LEADING SPACES.
                     jsr       CHCKCMDS            ; GO CHECK FOR ANY COMMANDS.
                     cpd       #0                  ; WERE THERE ANY?
-                    bne       MAIN2               ; YES. CONTINUE.
+                    bne       Loop@@              ; YES. CONTINUE.
                     ldx       VAREND              ; SAVE CURRENT END OF VARIABLE AREA IN CASE LINE
                     stx       FENCE               ; HAS AN ERROR IN IT. (SO NO SPURIOUS VARIABLES
                                                   ; ARE ALLOCATED)
                     jsr       PARSE
-                    tst       IMMID               ; DID WE EXECUTE IN IMMIDATE MODE?
-                    bne       MAIN2               ; YES. PRINT READY MESSAGE.
-                    bra       MAIN1               ; NO. JUST PRINT PROMPT.
+                    tst       IMMED               ; DID WE EXECUTE IN IMMEDIATE MODE?
+                    bne       Loop@@              ; YES. PRINT READY MESSAGE.
+                    bra       Prompt@@            ; NO. JUST PRINT PROMPT.
 
 MAIN3               ldx       FENCE               ; GET THE VAREND FENCE.
                     clr       ,x                  ; MARK "OLD" END OF VARIABLE AREA IN CASE ANY
                                                   ; VARIABLES WERE ALLOCATED.
                     stx       VAREND              ; RESTORE THE POINTER.
-                    bra       MAIN2               ; CONTINUE AFTER ERROR.
+                    bra       Loop@@              ; CONTINUE AFTER ERROR.
 
+;*******************************************************************************
 ;        ***** skipspcs() *****
 ;
 ; *skipspcs()
@@ -584,15 +565,15 @@ MAIN3               ldx       FENCE               ; GET THE VAREND FENCE.
 ; return;
 ; *}
 
-SKIPSPCS            equ       *
-SKIPSPC1            jsr       GETCHR
+SKIPSPCS            proc
+Loop@@              jsr       GETCHR
                     cmpa      #SPC
-                    bne       SKIPSPC2
+                    bne       Done@@
                     jsr       INCIBP
-                    bra       SKIPSPC1
+                    bra       Loop@@
+Done@@              rts
 
-SKIPSPC2            rts
-
+;*******************************************************************************
 ;        ***** outheader *****
 ;
 ; *outheader()
@@ -604,16 +585,16 @@ SKIPSPC2            rts
 ; nl();
 ; *}
 
-OUTHEADR            equ       *
-                    ldx       #HEADER
+OUTHEADR            proc
+                    ldx       #Msg@@
                     jmp       PL
 
-HEADER              equ       *
-                    fcb       CR,LF,CR,LF
-                    fcc       "BASIC11 v1.55",CR,LF
-                    fcc       "Copyright 1985-1990 by",CR,LF
-                    fcs       "Gordon Doughman",CR,LF
+Msg@@               fcb       CR,LF,CR,LF
+                    fcc       'BASIC11 v1.55',CR,LF
+                    fcc       'Copyright 1985-1990 by',CR,LF
+                    fcs       'Gordon Doughman',CR,LF
 
+;*******************************************************************************
 ;        ***** outrdy() *****
 ;
 ; *outrdy()
@@ -623,13 +604,13 @@ HEADER              equ       *
 ; return;
 ; *}
 
-OUTRDY              equ       *
-                    ldx       #READY
+OUTRDY              proc
+                    ldx       #Msg@@
                     jmp       PL
 
-READY               equ       *
-                    fcs       CR,LF,"READY",CR,LF
+Msg@@               fcs       CR,LF,'READY',CR,LF
 
+;*******************************************************************************
 ;        ***** getline() *****
 
 ; *getline()
@@ -639,18 +620,18 @@ READY               equ       *
 ; chrcnt=IBUFLEN;
 ; ibufptr=inbuff;
 
-GETLINE             equ       *
+GETLINE             proc
                     ldb       #IBUFLEN-1
                     ldx       INBUFFS
 
 ; while((c=inbyte())!=EOL && (chrcnt>0))
 ; {
 
-GETLINE3            jsr       INBYTE
+Loop@@              jsr       INBYTE
                     cmpa      #EOL
-                    beq       GETLINE1
+                    beq       Done@@
                     tstb
-                    beq       GETLINE1
+                    beq       Done@@
 
 ;  if(c==BS)
 ;  {
@@ -664,11 +645,10 @@ GETLINE3            jsr       INBYTE
 ;   else
 ;    continue;
 ;   }
-
                     cmpa      #BS
-                    bne       GETLINE2
+                    bne       Break?@@
                     cmpb      #IBUFLEN-1
-                    beq       GETLINE1
+                    beq       Done@@
                     dex
                     lda       #SPC
                     jsr       OUTBYTE
@@ -678,14 +658,13 @@ GETLINE3            jsr       INBYTE
 
 ;  if(c < SPC) continue;  ignore all other control characters
 
-GETLINE2            equ       *
-                    cmpa      #CNTRLC             ; IS IT A "BREAK"?
-                    bne       GETLINE4            ; NO. GO PROCESS THE CHARACTER.
+Break?@@            cmpa      #CTRL_C             ; IS IT A "BREAK"?
+                    bne       Go@@                ; NO. GO PROCESS THE CHARACTER.
                     inc       CONTFLAG            ; DONT ALLOW A "CONT".
                     jmp       CHCKBRK2            ; GO DO A BREAK.
 
-GETLINE4            cmpa      #SPC
-                    blo       GETLINE3
+Go@@                cmpa      #SPC
+                    blo       Loop@@
 
 ;  *ibufptr=c;            save character in input buffer
 ;  ibufptr+=1;           point to next location
@@ -694,28 +673,30 @@ GETLINE4            cmpa      #SPC
                     sta       ,x
                     inx
                     decb
-                    bne       GETLINE3
+                    bne       Loop@@
 
 ; *ibufptr=EOL;          put EOL in input buffer
 ; ibufptr=inbuff;        initalize the input buffer pointer
 ; return;
 ; *}
 
-GETLINE1            equ       *
-                    lda       #EOL
+Done@@              lda       #EOL
                     sta       ,x
                     ldx       INBUFFS
                     stx       IBUFPTR
                     rts
 
-ToUpper             equ       *
-                    cmpa      #'a'                ; is the character less than a lower case 'a'?
-                    blo       ToUpper1
-                    cmpa      #'z'
-                    bhi       ToUpper1
-                    anda      #$df
-ToUpper1            rts
+;*******************************************************************************
 
+ToUpper             proc
+                    cmpa      #'a'                ; is the character less than a lower case 'a'?
+                    blo       Done@@
+                    cmpa      #'z'
+                    bhi       Done@@
+                    anda      #$df
+Done@@              rts
+
+;*******************************************************************************
 ;        ***** outprmpt() *****
 
 ; *outprmpt()
@@ -725,13 +706,13 @@ ToUpper1            rts
 ; return;
 ; *}
 
-OUTPRMPT            equ       *
-                    ldx       #PRMPTSTR
+OUTPRMPT            proc
+                    ldx       #Msg@@
                     bra       PL
 
-PRMPTSTR            equ       *
-                    fcs       CR,LF,"#"
+Msg@@               fcs       CR,LF,'#'
 
+;*******************************************************************************
 ;        ***** nl() *****
 
 ; nl()                    send CR/LF to console
@@ -741,17 +722,21 @@ PRMPTSTR            equ       *
 ; return;
 ; *}
 
-NL2                 bsr       NL
-NL                  equ       *
-                    ldx       #CRLFSTR
+NL2                 proc
+                    bsr       NL
+;                   bra       NL
+
+;*******************************************************************************
+
+NL                  proc
+                    ldx       #Msg@@
                     bsr       PL
                     clr       PRINTPOS            ; SET THE CURRENT PRINT POSITION TO 0.
                     rts
 
-;
+Msg@@               fcs       LF,CR
 
-CRLFSTR             fcb       $0A,$0D,$00
-
+;*******************************************************************************
 ;        ***** pl() *****
 ;
 ; *pl(ptr)                 send line to console
@@ -763,15 +748,15 @@ CRLFSTR             fcb       $0A,$0D,$00
 ; return;
 ; *}
 
-PL                  equ       *
-PL1                 lda       ,x
-                    beq       PL2
+PL                  proc
+Loop@@              lda       ,x
+                    beq       Done@@
                     jsr       OUTBYTE
                     inx
-                    bra       PL1
+                    bra       Loop@@
+Done@@              rts
 
-PL2                 rts
-
+;*******************************************************************************
 ;        ***** parse() *****
 
 ; *parse()
@@ -779,7 +764,7 @@ PL2                 rts
 ; int num;
 ; tbufptr=tknbuf;                initalize the token buffer pointer
 
-PARSE               equ       *
+PARSE               proc
                     ldx       TKNBUFS             ; Get the start of the token buffer
                     stx       TBUFPTR
 
@@ -790,10 +775,10 @@ PARSE               equ       *
 ;   delline(num);                go delete the line from the prog buffer
 ;   return;
 ;  }
-;  immid=0;                      flag as not immidiate
+;  immed=0;                      flag as not immediate
 ;  putlinum(num);                put line number in buffer
 ; }
-;  else immid=1;                  if no line # flag as immidiate*/
+;  else immed=1;                  if no line # flag as immediate*/
 
                     bsr       GETLINUM
                     bcc       PARSE2
@@ -808,7 +793,7 @@ PARSE               equ       *
                     stx       STRASTG
 PARSE7              rts
 
-PARSE1              clr       IMMID
+PARSE1              clr       IMMED
 PARSE8              bsr       PUTLINUM
                     bra       PARSE3
 
@@ -816,20 +801,20 @@ PARSE2              jsr       GETCHR
                     cmpa      #EOL
                     beq       PARSE7
                     lda       #1
-                    sta       IMMID
+                    sta       IMMED
                     ldd       #0
                     bra       PARSE8
 
 ; if(errcode) return;             if line number error, return
 ; xlate();                        if translation error, return
 ; if(errcode) return;
-; if(immid) runline();            if immidiate mode run 1 line
+; if(immed) runline();            if immediate mode run 1 line
 ;  else storlin();                if not store pgm line
 ; return;                         go get next line
 ; *}
 
 PARSE3              jsr       XLATE
-                    tst       IMMID
+                    tst       IMMED
                     beq       PARSE5
                     jmp       RUNLINE             ; GO RUN THE LINE & RETURN.
 
@@ -839,6 +824,7 @@ PARSE5              jsr       STORLIN             ; GO STORE LINE & RETURN.
                     stx       STRASTG
                     rts
 
+;*******************************************************************************
 ;        ***** getlinum *****
 
 ; *getlinum()
@@ -846,12 +832,10 @@ PARSE5              jsr       STORLIN             ; GO STORE LINE & RETURN.
 ; int num;
 ; num=0;
 
-GETLINUM            equ       *
-
+GETLINUM            proc
                     pshy
                     clra
-                    psha
-                    psha
+                    psha:2
                     tsy
 
 ; if(numeric(*ibufptr)==0) return(0);    if 1st char not numeric, rtn 0
@@ -870,30 +854,30 @@ GETLINUM            equ       *
 ; return(num);
 ; *}
 
-GTLNUM2             lda       ,x
+Loop@@              lda       ,x
                     bsr       NUMERIC
                     bcs       GTLNUM3
                     sec
-GTLNUM1             ldd       ,y
+                    ldd       ,y
                     bne       GTLNUM4
                     lda       #LINENERR
-                    bra       GTLNUM5
+                    bra       Fail@@
 
-GTLNUM4             ins
-                    ins
+GTLNUM4             ins:2
                     puly
                     stx       IBUFPTR
                     rts
 
 GTLNUM3             bsr       ADDDIG
-                    bpl       GTLNUM2
+                    bpl       Loop@@
                     lda       #LINRANG
-GTLNUM5             jmp       RPTERR
+Fail@@              jmp       RPTERR
 
-ADDDIG              equ       *
+;*******************************************************************************
+
+ADDDIG              proc
                     ldd       ,y
-                    asld
-                    asld
+                    asld:2
                     addd      ,y
                     asld
                     std       ,y
@@ -905,6 +889,7 @@ ADDDIG              equ       *
                     std       ,y
                     rts
 
+;*******************************************************************************
 ;        ***** putlinum *****
 
 ; *putlinum(lnum)
@@ -915,11 +900,12 @@ ADDDIG              equ       *
 ; return;
 ; *}
 
-PUTLINUM            equ       *
+PUTLINUM            proc
                     jsr       PUTDTOK
                     clra
                     jmp       PUTTOK
 
+;*******************************************************************************
 ;        ***** numeric() *****
 
 ; *numeric(c)
@@ -929,17 +915,18 @@ PUTLINUM            equ       *
 ; return((c>='0')&(c<='9'));
 ; *}
 
-NUMERIC             equ       *
+NUMERIC             proc
                     cmpa      #'0'
-                    blo       NUMERIC1
+                    blo       No@@
                     cmpa      #'9'
-                    bhi       NUMERIC1
+                    bhi       No@@
                     sec
                     rts
 
-NUMERIC1            clc
+No@@                clc
                     rts
 
+;*******************************************************************************
 ;        ***** alpha() *****
 
 ; *alpha(c)
@@ -949,35 +936,36 @@ NUMERIC1            clc
 ; return((c>='A')&(c<='Z'));
 ; *}
 
-ALPHA               equ       *
+ALPHA               proc
                     cmpa      #'A'
-                    blo       ALPHA1
+                    blo       No@@
                     cmpa      #'Z'
-                    bls       ALPHA2
+                    bls       Yes@@
                     cmpa      #'a'
-                    blo       ALPHA1
+                    blo       No@@
                     cmpa      #'z'
-                    bhi       ALPHA1
-ALPHA2              sec
+                    bhi       No@@
+Yes@@               sec
                     rts
 
-ALPHA1              clc
+No@@                clc
                     rts
 
+;*******************************************************************************
 ;        ***** alphanum *****
 
 ; *alphanum(c)
 ; *char c;
 ; *{ return ((alpha(c)) | (numeric(c))); }
 
-ALPHANUM            equ       *
+ALPHANUM            proc
                     bsr       ALPHA
-                    bcc       ALPHANU1
+                    bcc       Numeric@@
                     rts
 
-ALPHANU1            bra       NUMERIC
+Numeric@@           bra       NUMERIC
 
-;*****************************************
+;*******************************************************************************
 ;              xlate()
 ; translate the input buffer into tokenized
 ; form placing the results into tknbuf
@@ -1022,7 +1010,7 @@ ALPHANU1            bra       NUMERIC
 ; return;
 ; *}
 
-XLATE               equ       *
+XLATE               proc
                     jsr       GETCHR              ; GET NEXT CHAR.
                     cmpa      #EOL                ; AT THE END OF THE LINE?
                     beq       XLATE1              ; YES.
@@ -1078,141 +1066,141 @@ XLATE1              lda       #EOLTOK             ; GET EOL TOKEN.
 ;        KEYWORD LOOK UP TABLE
 
 KEYWORDS            equ       *
-DATA                fcs       "DATA"
+DATA                fcs       'DATA'
                     fcb       DATATOK
                     fdb       XDATA
-LET                 fcs       "LET"
+LET                 fcs       'LET'
                     fcb       LETTOK
                     fdb       XLET
-READ                fcs       "READ"
+READ                fcs       'READ'
                     fcb       READTOK
                     fdb       XREAD
-RESTORE             fcs       "RESTORE"
+RESTORE             fcs       'RESTORE'
                     fcb       RESTRTOK
                     fdb       XRESTORE
-GOSUB               fcs       "GOSUB"
+GOSUB               fcs       'GOSUB'
                     fcb       GOSUBTOK
                     fdb       XGOSUB
-GOTO                fcs       "GOTO"
+GOTO                fcs       'GOTO'
                     fcb       GOTOTOK
                     fdb       XGOTO
-ONTIME              fcs       "ONTIME"
+ONTIME              fcs       'ONTIME'
                     fcb       ONTIMTOK
                     fdb       XONTIME
-ONIRQ               fcs       "ONIRQ"
+ONIRQ               fcs       'ONIRQ'
                     fcb       ONIRQTOK
                     fdb       XONIRQ
-ONPACC              fcs       "ONPACC"
+ONPACC              fcs       'ONPACC'
                     fcb       ONPACTOK
                     fdb       XONPACC
-ON                  fcs       "ON"
+ON                  fcs       'ON'
                     fcb       ONTOK
                     fdb       XON
-RETURN              fcs       "RETURN"
+RETURN              fcs       'RETURN'
                     fcb       RETNTOK
                     fdb       XRETURN
-IIF                 fcs       "IF"
+IIF                 fcs       'IF'
                     fcb       IFTOK
                     fdb       XIF
-INPUT               fcs       "INPUT"
+INPUT               fcs       'INPUT'
                     fcb       INPUTTOK
                     fdb       XINPUT
-PRINT               fcs       "PRINT"
+PRINT               fcs       'PRINT'
                     fcb       PRINTTOK
                     fdb       XPRINT
-                    fcs       "?"
+                    fcs       '?'
                     fcb       PRINTTOK
                     fdb       XPRINT
-FOR                 fcs       "FOR"
+FOR                 fcs       'FOR'
                     fcb       FORTOK
                     fdb       XFOR
-NEXT                fcs       "NEXT"
+NEXT                fcs       'NEXT'
                     fcb       NEXTTOK
                     fdb       XNEXT
-STOPSS              fcs       "STOP"
+STOPSS              fcs       'STOP'
                     fcb       STOPTOK
                     fdb       XSTOP
-ENDWH               fcs       "ENDWH"
+ENDWH               fcs       'ENDWH'
                     fcb       ENDWHTOK
                     fdb       XENDWH
-ENDS                fcs       "END"
+ENDS                fcs       'END'
                     fcb       ENDTOK
                     fdb       XEND
-REM                 fcs       "REM"
+REM                 fcs       'REM'
                     fcb       REMTOK
                     fdb       XREM
-TRON                fcs       "TRON"
+TRON                fcs       'TRON'
                     fcb       TRONTOK
                     fdb       XTRON
-TROFF               fcs       "TROFF"
+TROFF               fcs       'TROFF'
                     fcb       TROFFTOK
                     fdb       XTROFF
-WHILE               fcs       "WHILE"
+WHILE               fcs       'WHILE'
                     fcb       WHILETOK
                     fdb       XWHILE
-POKE                fcs       "POKE"
+POKE                fcs       'POKE'
                     fcb       POKETOK
                     fdb       XPOKE
-DIM                 fcs       "DIM"
+DIM                 fcs       'DIM'
                     fcb       DIMTOK
                     fdb       XDIM
-EEP                 fcs       "EEP"
+EEP                 fcs       'EEP'
                     fcb       EEPTOK
                     fdb       XEEP
-PORTA               fcs       "PORTA"
+PORTA               fcs       'PORTA'
                     fcb       PORTATOK
                     fdb       XPORTA
-PORTB               fcs       "PORTB"
+PORTB               fcs       'PORTB'
                     fcb       PORTBTOK
                     fdb       XPORTB
-PORTC               fcs       "PORTC"
+PORTC               fcs       'PORTC'
                     fcb       PORTCTOK
                     fdb       XPORTC
-PORTD               fcs       "PORTD"
+PORTD               fcs       'PORTD'
                     fcb       PORTDTOK
                     fdb       XPORTD
-INBYTES             fcs       "INBYTE"
+INBYTES             fcs       'INBYTE'
                     fcb       INBYTTOK
                     fdb       XINBYTE
-TIME                fcs       "TIME"
+TIME                fcs       'TIME'
                     fcb       TIMETOK
                     fdb       XTIME
-RETI                fcs       "RETI"
+RETI                fcs       'RETI'
                     fcb       RETITOK
                     fdb       XRETI
-PACC                fcs       "PACC"
+PACC                fcs       'PACC'
                     fcb       PACCTOK
                     fdb       XPACC
-SLEEP               fcs       "SLEEP"
+SLEEP               fcs       'SLEEP'
                     fcb       SLEEPTOK
                     fdb       XSLEEP
-RTIMES              fcs       "RTIME"
+RTIMES              fcs       'RTIME'
                     fcb       RTIMETOK
                     fdb       XRTIME
-
                     fcb       0                   ; END OF TABLE MARKER.
 
+;*******************************************************************************
 ; *blanks()
 ; *{
 ; short spcnt;
 ; spcnt=0;
 ; while(*ibufptr==SPC) { ibufptr++; spcnt++; }
 
-BLANKS              equ       *
+BLANKS              proc
                     pshx
                     ldx       IBUFPTR
                     clrb
-BLANKS1             lda       ,x
+Loop@@              lda       ,x
                     cmpa      #SPC
-                    bne       BLANKS2
+                    bne       NonSpace@@
                     incb
                     inx
-                    bra       BLANKS1
+                    bra       Loop@@
 
 ; if(spcnt==0) return;
 
-BLANKS2             tstb
-                    bne       BLANKS3
+NonSpace@@          tstb
+                    bne       Spaces@@
                     pulx
                     rts
 
@@ -1222,14 +1210,14 @@ BLANKS2             tstb
 ;   *tbufptr++=spcnt;
 ;  }
 
-BLANKS3             stx       IBUFPTR
+Spaces@@            stx       IBUFPTR
                     ldx       TBUFPTR
                     cmpb      #1
-                    beq       BLANKS4
+                    beq       Token@@
                     lda       #MSCNTOK
                     sta       ,x
                     inx
-BLANKS5             stb       ,x
+Save@@              stb       ,x
                     inx
                     stx       TBUFPTR
                     pulx
@@ -1242,8 +1230,8 @@ BLANKS5             stb       ,x
 ; return;
 ; *}
 
-BLANKS4             ldb       #SSCNTOK
-                    bra       BLANKS5
+Token@@             ldb       #SSCNTOK
+                    bra       Save@@
 
 ; *<><><><><><><> NOTE: THIS FUNCTION NOT NEEDED <><><><><><><>
 ;
@@ -1268,6 +1256,7 @@ BLANKS4             ldb       #SSCNTOK
 ; return(0);
 ; *}
 
+;*******************************************************************************
 ;****************************************
 ;               streq()
 ; compare srt1 to str2. str2 must be null
@@ -1287,67 +1276,75 @@ BLANKS4             ldb       #SSCNTOK
 ; return(k);
 ; *}
 
-STREQ               equ       *
+STREQ               proc
                     ldd       IBUFPTR             ; SAVE VALUE OF POINTER.
                     pshd
-STREQU4             lda       ,x
-                    beq       STREQU2
-STREQU1             bsr       GETNXCHR
+Loop@@              lda       ,x
+                    beq       Done@@
+                    bsr       GETNXCHR
                     jsr       ToUpper             ; Make the character upper case.
                     cmpa      ,x
-                    beq       STREQU3
+                    beq       Cont@@
                     puld
                     std       IBUFPTR
                     clc
                     rts
 
-STREQU3             inx
-                    bra       STREQU4
+Cont@@              inx
+                    bra       Loop@@
 
-STREQU2             puld
+Done@@              puld
                     sec
                     rts
 
-;        THIS ROUTINE GETS THE NEXT CHARACTER FROM THE INPUT BUFFER.
+;*******************************************************************************
+; THIS ROUTINE GETS THE NEXT CHARACTER FROM THE INPUT BUFFER.
 
-GETCHR              pshx                          ; SAVE THE X REGISTER.
+GETCHR              proc
+                    pshx                          ; SAVE THE X REGISTER.
                     ldx       IBUFPTR             ; GET POINTER.
                     lda       ,x                  ; GET A CHARACTER.
                     pulx                          ; RESTORE X.
                     rts                           ; RETURN.
 
-;        THIS ROUTINE GETS THE NEXT CHARACTER FROM THE INPUT BUFFER
-;        AND ADVANCES THE POINTER TO POINT TO THE NEXT CHARACTER.
+;*******************************************************************************
+; THIS ROUTINE GETS THE NEXT CHARACTER FROM THE INPUT BUFFER
+; AND ADVANCES THE POINTER TO POINT TO THE NEXT CHARACTER.
 
-GETNXCHR            bsr       GETCHR
+GETNXCHR            proc
+                    bsr       GETCHR
+;                   bra       INCIBP
 
-          ; FALL THROUGH TO INCIBP.
+;*******************************************************************************
+; THIS ROUTINE JUST INCREMENTS THE INPUT BUFFER POINTER.
 
-;        THIS ROUTINE JUST INCREMENTS THE INPUT BUFFER POINTER.
-
-INCIBP              pshx                          ; SAVE X.
+INCIBP              proc
+                    pshx                          ; SAVE X.
                     ldx       IBUFPTR             ; GET POINTER.
-INCIBP1             inx                           ; ADVANCE POINTER.
+                    inx                           ; ADVANCE POINTER.
                     stx       IBUFPTR             ; UPDATE POINTER.
 INCIBP2             pulx                          ; RESTORE X
                     rts                           ; RETURN.
 
-;        THIS ROUTINE PUTS THE WORD IN THE D-REG. INTO THE TOKEN BUFFER
-;        AND ADVANCES THE TOKEN BUFFER POINTER.
+;*******************************************************************************
+; THIS ROUTINE PUTS THE WORD IN THE D-REG. INTO THE TOKEN BUFFER
+; AND ADVANCES THE TOKEN BUFFER POINTER.
 
-PUTDTOK             bsr       PUTTOK              ; PUT THE FIRST BYTE INTO THE TOKEN BUFFER.
+PUTDTOK             proc
+                    bsr       PUTTOK              ; PUT THE FIRST BYTE INTO THE TOKEN BUFFER.
                     tba                           ; PUT THE 2ND BYTE INTO A.
+;                   bra       PUTTOK
 
-          ; FALL THROUGH TO PUTTOK.
+;*******************************************************************************
+; THIS ROUTINE PUTS THE CHARACTER IN THE A-REG. INTO THE TOKEN
+; BUFFER AND ADVANCES THE TOKEN BUFFER POINTER.
 
-;        THIS ROUTINE PUTS THE CHARACTER IN THE A-REG. INTO THE TOKEN
-;        BUFFER AND ADVANCES THE TOKEN BUFFER POINTER.
-
-PUTTOK              pshx                          ; SAVE X.
+PUTTOK              proc
+                    pshx                          ; SAVE X.
                     pshd                          ; (9/12/89).
                     ldx       TBUFPTR             ; GET POINTER.
                     sta       ,x                  ; PUT CHARACTER.
-PUTTOK1             inx                           ; ADVANCE POINTER.
+                    inx                           ; ADVANCE POINTER.
                     stx       TBUFPTR             ; SAVE POINTER.
 
                     ldd       TKNBUFS             ; get the starting address of the token buffer.
@@ -1361,7 +1358,7 @@ PUTTOK1             inx                           ; ADVANCE POINTER.
                     title     BASICLB2
                     page
 
-; *<><><><><><> NOTE: FUNCTION PERFORMED IN "XLATE" <><><><><><>
+; *<><><><><><> NOTE: FUNCTION PERFORMED IN 'XLATE' <><><><><><>
 ;
 ;***** xmideol() *****/
 ;
@@ -1388,13 +1385,13 @@ PUTTOK1             inx                           ; ADVANCE POINTER.
 ; return;
 ; *}
 
-XGOSUB              equ       *
-XGOTO               equ       *
+XGOSUB              proc
+XGOTO               proc
 ;                   jsr       BLANKS
                     lda       #LCONTOK
                     bsr       PUTTOK
                     jsr       GETLINUM
-XGOTO2              bra       PUTDTOK
+                    bra       PUTDTOK
 
 ; *<><><><><><> ROUTINE NOT NEEDED <><><><><><>
 ;
@@ -1456,16 +1453,16 @@ XGOTO2              bra       PUTDTOK
 ; return;
 ; *}
 
-XRETURN             equ       *
-XSTOP               equ       *
-XEND                equ       *
-XTRON               equ       *
-XTROFF              equ       *
-XRESTORE            equ       *
-XENDWH              equ       *
-XRETI               equ       *
-XSLEEP              equ       *
-XRTIME              equ       *
+XRETURN             proc
+XSTOP               proc
+XEND                proc
+XTRON               proc
+XTROFF              proc
+XRESTORE            proc
+XENDWH              proc
+XRETI               proc
+XSLEEP              proc
+XRTIME              proc
                     rts                           ; NULL FUNCTIONS BECAUSE TOKEN PLACEMENT IS DONE IN
                                                   ; XLATE FUNCTION.
 ;***** REM *****/
@@ -1499,30 +1496,32 @@ XRTIME              equ       *
 ; return;
 ; *}
 
-XDATA               equ       *
-XREM                equ       *
+XDATA               proc
+XREM                proc
                     ldx       TBUFPTR             ; GET POINTER TO TOKEN BUFFER.
                     pshx                          ; SAVE IT. (POINTER TO LENGTH OF REM OR DATA)
                     lda       #0                  ; SAVE A BYTE FOR THE LENGTH.
                     bsr       PUTTOK
                     ldb       #2                  ; INITALIZE LENGTH TO 2 (INCLUDES LENGTH & EOL.
-XREM1               bsr       GETCHR
+Loop@@              bsr       GETCHR
                     cmpa      #EOL
-                    beq       XREM2
+                    beq       Done@@
                     bsr       PUTTOK
                     bsr       INCIBP
                     incb                          ; UP THE BYTE COUNT.
-                    bra       XREM1
+                    bra       Loop@@
 
-XREM2               bsr       PUTTOK
+Done@@              bsr       PUTTOK
                     pulx                          ; GET POINTER TO LENGTH BYTE.
                     stb       ,x                  ; PUT IT IN THE TOKEN BUFFER.
                     rts
 
-XPORTA              equ       *
-XPORTB              equ       *
-XPORTC              equ       *
-XPORTD              equ       *
+;*******************************************************************************
+
+XPORTA              proc
+XPORTB              proc
+XPORTC              proc
+XPORTD              proc
                     ldb       #NUM                ; WE'RE XLATING A NUMERICAL STATEMENT.
                     bra       ASIGNMT1            ; GO DO IT LIKE AN ASIGNMENT STATEMENT.
 
@@ -1554,11 +1553,12 @@ XPORTD              equ       *
 ; return;
 ; *}
 
-XLET                equ       *
-XIMPLET             equ       *
+XLET                proc
+XIMPLET             proc
 ;                   jsr       BLANKS
 ;XLET1              jmp       ASIGNMT
 
+;*******************************************************************************
 ;***** asignmt() *****/
 ;
 ; *asignmt()
@@ -1572,21 +1572,21 @@ XIMPLET             equ       *
 ; return;
 ; *}
 
-ASIGNMT             equ       *
+ASIGNMT             proc
                     jsr       GETVAR
                     tab
 ASIGNMT1            bsr       GETNXCHR
                     cmpa      #'='
-                    beq       ASIGNMT2
+                    beq       Go@@
                     lda       #IVEXPERR
                     jmp       RPTERR
 
-ASIGNMT2            lda       #EQUALTOK
+Go@@                lda       #EQUALTOK
                     bsr       PUTTOK
                     tba
+;                   bra       XEXPRES
 
-          ; FALL THROUGH TO XEXPRES.
-
+;*******************************************************************************
 ;***** xexpres() *****/
 ;
 ; *xexpres(type)
@@ -1599,7 +1599,7 @@ ASIGNMT2            lda       #EQUALTOK
 ;  else if(match("@")) *tbufptr++=INDIRTOK;
 ;  else if(match("NOT")) *tbufptr++=NOTTOK;
 
-XEXPRES             equ       *
+XEXPRES             proc
                     pshy
                     psha
                     tsy
@@ -1747,6 +1747,7 @@ XEXPRS24            ins
 XEXPRS23            jsr       PUTTOK
                     jmp       XEXPRS29
 
+;*******************************************************************************
 ;***** cknumop() *****/
 ;
 ; *cknumop()
@@ -1760,14 +1761,14 @@ XEXPRS23            jsr       PUTTOK
 ; else return(NULL);
 ; *}
 
-CKNUMOP             equ       *
+CKNUMOP             proc
                     ldx       #NUMOPTBL
-
 CKOP                jsr       TBLSRCH
-                    bcs       CKOP1
+                    bcs       Done@@
                     lda       #NULL
-CKOP1               rts
+Done@@              rts
 
+;*******************************************************************************
 ;***** ckbolop() *****/
 ;
 ; *ckbolop()
@@ -1778,7 +1779,7 @@ CKOP1               rts
 ; else return(NULL);
 ; *}
 
-CKBOLOP             equ       *
+CKBOLOP             proc
                     ldx       #BOLOPTBL
                     bra       CKOP
 
@@ -1795,80 +1796,77 @@ CKBOLOP             equ       *
 ; else return(NULL);
 ; *}
 
-CKLOGOP             equ       *
+CKLOGOP             proc
                     ldx       #LOGOPTBL
                     bra       CKOP
 
+;*******************************************************************************
 ; *<><><><><> NOTE: THIS ROUTINE HAS NO 'C' COUNTER PART <><><><><><>
 
-TBLSRCH             equ       *
+TBLSRCH             proc
                     jsr       STREQ               ; SEARCH FOR STRING.
-                    bcs       TBLSRCH1            ; IF FOUND GO GET TOKEN & RETURN.
-TBLSRCH2            inx                           ; BUMP POINTER TO NEXT CHAR.
+                    bcs       Found@@             ; IF FOUND GO GET TOKEN & RETURN.
+Loop@@              inx                           ; BUMP POINTER TO NEXT CHAR.
                     lda       ,x                  ; GET IT.
-                    bne       TBLSRCH2            ; KEEP LOOKING FOR END OF ENTRY.
-                    inx                           ; FOUND IT. BUMP POINTER TO NEXT ENTRY.
-                    inx
+                    bne       Loop@@              ; KEEP LOOKING FOR END OF ENTRY.
+                    inx:2                         ; FOUND IT. BUMP POINTER TO NEXT ENTRY.
                     lda       ,x                  ; AT THE END OF THE TABLE?
                     bne       TBLSRCH             ; NO. GO CHECK THE NEXT ENTRY.
                     clc                           ; YES. FLAG AS NOT FOUND.
                     rts                           ; RETURN.
 
-TBLSRCH1            lda       1,x                 ; GET TOKEN.
+Found@@             lda       1,x                 ; GET TOKEN.
                     sec                           ; FLAG AS FOUND.
                     rts                           ; RETURN.
 
 NUMOPTBL            equ       *
-PLUS                fcs       "+"
+PLUS                fcs       '+'
                     fcb       PLUSTOK
-MINUS               fcs       "-"
+MINUS               fcs       '-'
                     fcb       MINUSTOK
-MULT                fcs       "*"
+MULT                fcs       '*'
                     fcb       MULTTOK
-DIV                 fcs       "/"
+DIV                 fcs       '/'
                     fcb       DIVTOK
-MODS                fcs       "\"
+MODS                fcs       '\'
                     fcb       MODTOK
-
                     fcb       0                   ; END OF TABLE FLAG.
 
 BOLOPTBL            equ       *
-ANDS                fcs       ".AND."
+ANDS                fcs       '.AND.'
                     fcb       ANDTOK
-ORS                 fcs       ".OR."
+ORS                 fcs       '.OR.'
                     fcb       ORTOK
-EORS                fcs       ".EOR."
+EORS                fcs       '.EOR.'
                     fcb       EORTOK
-
                     fcb       0                   ; END OF TABLE FLAG.
 
 LOGOPTBL            equ       *
-LTEQ                fcs       "<="
+LTEQ                fcs       '<='
                     fcb       LTEQTOK
-GTEQ                fcs       ">="
+GTEQ                fcs       '>='
                     fcb       GTEQTOK
-NOTEQ               fcs       "<>"
+NOTEQ               fcs       '<>'
                     fcb       NOTEQTOK
-LT                  fcs       "<"
+LT                  fcs       '<'
                     fcb       LTTOK
-GT                  fcs       ">"
+GT                  fcs       '>'
                     fcb       GTTOK
-EQ                  fcs       "="
+EQ                  fcs       '='
                     fcb       EQTOK
-
                     fcb       0                   ; END OF TABLE FLAG.
 
 UINARYOP            equ       *
-NEGS                fcs       "-"
+NEGS                fcs       '-'
                     fcb       NEGTOK
-NOTS                fcs       "NOT"
+NOTS                fcs       'NOT'
                     fcb       NOTTOK
-
                     fcb       0                   ; END OF TABLE MARKER.
 ;                   include   'basiclb3.mod'
                     title     BASICLB3
                     page
 
+;*******************************************************************************
 ;***** getvar *****/
 ;
 ; *tries to make a variable out of what is currently being pointed to by
@@ -1884,21 +1882,18 @@ NOTS                fcs       "NOT"
 ; if(alpha(*ibufptr)) { varname[0]=*ibufptr++; } is 1st char an alpha?
 ;  else { errcode=ILVARERR; return(0); } no. error
 
-GETVAR              equ       *
+GETVAR              proc
                     pshy
                     clra
-                    psha
-                    psha
-                    psha
-                    psha
+                    psha:4
                     tsy
                     jsr       GETCHR
                     jsr       ALPHA
-                    bcs       GETVAR1
+                    bcs       Go@@
                     lda       #ILVARERR
                     jmp       RPTERR
 
-GETVAR1             jsr       ToUpper
+Go@@                jsr       ToUpper
                     sta       ,y
                     jsr       INCIBP
 
@@ -1910,10 +1905,10 @@ GETVAR1             jsr       ToUpper
                     jsr       ALPHANUM
                     bcc       GETVAR2
                     jsr       ToUpper
-                    sta       1,Y
+                    sta       1,y
                     jsr       INCIBP
 GETVAR2             jsr       CHCKTYP
-                    sta       3,Y
+                    sta       3,y
 
 ; if((offset=findvar(vartype,varname))==-1) is var already in table?
 ; {
@@ -1925,7 +1920,7 @@ GETVAR2             jsr       CHCKTYP
                     jsr       FINDVAR
                     cpd       #-1
                     bne       GETVAR5
-GETVAR4             lda       3,Y
+                    lda       3,y
                     jsr       PUTVAR
 
 ; *tbufptr++=vartype;    put variable type byte in token buffer
@@ -1934,13 +1929,12 @@ GETVAR4             lda       3,Y
 ; return(STRING);
 ; *}
 
-GETVAR5             equ       *
-                    pshd
-                    lda       3,Y
+GETVAR5             pshd
+                    lda       3,y
                     jsr       PUTTOK
                     puld
                     jsr       PUTDTOK
-                    lda       3,Y                 ; GET VARIABLE TYPE AGAIN.
+                    lda       3,y                 ; GET VARIABLE TYPE AGAIN.
                     bita      #$10                ; IS IT AN ARRAY VARIABLE?
                     beq       GETVAR7             ; NO. CONTINUE.
                     jsr       INCIBP              ; MOVE THE INPUT BUFFER POINTER PAST THE OPEN (.
@@ -1957,17 +1951,15 @@ GETVAR5             equ       *
 GETVAR8             lda       #CPARNTOK           ; GET CLOSING PAREN TOKEN.
                     jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
 GETVAR7             lda       #NUM                ; NO. RETURN PROPER TYPE.
-                    ldb       3,Y
+                    ldb       3,y
                     bitb      #2
-                    beq       GETVAR6
+                    beq       Done@@
                     lda       #STRING
-GETVAR6             ins
-                    ins
-                    ins
-                    ins
+Done@@              ins:4
                     puly
                     rts
 
+;*******************************************************************************
 ;***** chcktype *****/
 ;
 ; *chcktyp()
@@ -1977,16 +1969,17 @@ GETVAR6             ins
 ;  else return(0);
 ; *}
 
-CHCKTYP             equ       *
+CHCKTYP             proc
                     lda       #IVARTOK            ; IN V1.0 ONLY INTEGER VARIABLES ARE SUPPORTED.
                     psha                          ; IN V2.0 FLOATING POINT VARIABLES WILL BE
                     jsr       GETCHR              ; SUPPORTED.
                     cmpa      #'('                ; IS A SUBSCRIPT FOLLOWING THE NAME?
                     pula                          ; RESTORE THE TOKEN TYPE.
-                    bne       CHCKTYP4            ; NO. RETURN.
+                    bne       Done@@              ; NO. RETURN.
                     adda      #$10                ; YES. MAKE IT AN ARRAY VARIABLE.
-CHCKTYP4            rts                           ; RETURN.
+Done@@              rts                           ; RETURN.
 
+;*******************************************************************************
 ;***** findvar *****/
 ;
 ; *findvar(vartype,varname)
@@ -1997,10 +1990,10 @@ CHCKTYP4            rts                           ; RETURN.
 ; varptr=varbegin;               point to the start of the var table
 ; while(*varptr)                 we're not to the end of the table
 
-FINDVAR             equ       *
+FINDVAR             proc
                     ldx       VARBEGIN
-FINDVAR1            tst       ,x
-                    beq       FINDVAR2
+Loop@@              tst       ,x
+                    beq       Done@@
 
 ; {
 ;  if(*varptr==vartype)          is the current var the same type?
@@ -2012,13 +2005,13 @@ FINDVAR1            tst       ,x
 ;  }
 
                     cmpa      ,x
-                    bne       FINDVAR3
+                    bne       NextVar@@
                     ldb       1,x
                     cmpb      ,y
-                    bne       FINDVAR3
+                    bne       NextVar@@
                     ldb       2,x
-                    cmpb      1,Y
-                    bne       FINDVAR3
+                    cmpb      1,y
+                    bne       NextVar@@
                     xgdx
                     subd      VARBEGIN
                     rts
@@ -2030,28 +2023,28 @@ FINDVAR1            tst       ,x
 ;  else { errcode=ILTOKERR; return(-1); }
 ; }
 
-FINDVAR3            equ       *
-                    ldb       ,x
+NextVar@@           ldb       ,x
                     bitb      #$10                ; IS IT AN ARRAY VARIABLE?
-                    beq       FINDVAR8            ; NO CONTINUE.
+                    beq       Cont@@              ; NO CONTINUE.
                     ldb       #ASIZ+3             ; YES. GET ARRAY SIZE +3.
-                    bra       FINDVAR7
+                    bra       Skip@@
 
-FINDVAR8            cmpb      #IVARTOK
-                    bne       FINDVAR6
+Cont@@              cmpb      #IVARTOK
+                    bne       Fail@@
                     ldb       #ISIZ+3
-FINDVAR7            abx
-                    bra       FINDVAR1
+Skip@@              abx
+                    bra       Loop@@
 
-FINDVAR6            lda       #ILTOKERR
+Fail@@              lda       #ILTOKERR
                     jmp       RPTERR
 
-FINDVAR2            ldd       #-1
+Done@@              ldd       #-1
                     rts
 
 ; return(-1);
 ; *}
 ;
+;*******************************************************************************
 ;***** putvar *****/
 ;
 ; *putvar(vartype,varname)
@@ -2065,7 +2058,7 @@ FINDVAR2            ldd       #-1
 ; *varend++=*varname++;  put variable name in
 ; *varend++=*varname++;
 
-PUTVAR              equ       *
+PUTVAR              proc
                     ldx       VAREND
                     pshx
                     sta       ,x
@@ -2073,7 +2066,7 @@ PUTVAR              equ       *
                     ldb       ,y
                     stb       ,x
                     inx
-                    ldb       1,Y
+                    ldb       1,y
                     stb       ,x
                     inx
 
@@ -2092,38 +2085,39 @@ PUTVAR              equ       *
                     clr       ,x                  ; CLEAR 1 BYTE BEYOND THE END OF THE VAR AREA.
                     stx       VAREND
                     cpx       VARMEND
-                    bls       PUTVAR5
+                    bls       Go@@
                     lda       #OMEMERR
-                    bra       CLRVAR6
+                    bra       ?ErrHook
 
-PUTVAR5             equ       *
-                    puld
+Go@@                puld
                     subd      VARBEGIN
                     pshd                          ; SAVE THE OFFSET TO THIS VARIABLE.
                     jsr       CCLEAR3             ; CLEAR ALL VARIABLES SINCE WE MAY HAVE TRASHED
                                                   ; ANY ARRAYS THAT HAD BEEN ALLOCATED.
-                    puld                          ; RESTORE THE "NEW" VARIABLE OFFSET.
+                    puld                          ; RESTORE THE 'NEW' VARIABLE OFFSET.
                     rts
 
-CLRVAR              equ       *
-                    bita      #$10                ; IS IT AN ARRAY VARIABLE?
-                    beq       CLRVAR8             ; NO. CONTINUE.
-                    ldb       #ASIZ               ; YES. GET THE DICTIONARY SIZE+1.
-                    bra       CLRVAR1             ; PUT THE VARIABLE IN THE DICTIONARY.
+;*******************************************************************************
 
-CLRVAR8             cmpa      #IVARTOK
-                    bne       CLRVAR4
+CLRVAR              proc
+                    bita      #$10                ; IS IT AN ARRAY VARIABLE?
+                    beq       Go@@                ; NO. CONTINUE.
+                    ldb       #ASIZ               ; YES. GET THE DICTIONARY SIZE+1.
+                    bra       Loop@@              ; PUT THE VARIABLE IN THE DICTIONARY.
+
+Go@@                cmpa      #IVARTOK
+                    bne       Fail@@
                     ldb       #ISIZ
-CLRVAR1             equ       *
-                    clr       ,x
+Loop@@              clr       ,x
                     inx
                     decb
-                    bne       CLRVAR1
+                    bne       Loop@@
                     rts
 
-CLRVAR4             lda       #ILTOKERR
-CLRVAR6             jmp       RPTERR
+Fail@@              lda       #ILTOKERR
+?ErrHook            jmp       RPTERR
 
+;*******************************************************************************
 ;***** getcon() *****/
 ;
 ; *getcon()
@@ -2134,23 +2128,22 @@ CLRVAR6             jmp       RPTERR
 ; litp=ibufptr;          save a pointer to start of constant
 ; if(*ibufptr=='"') { getscon(); return(STRING); } if " get strng
 
-GETCON              equ       *
+GETCON              proc
                     jsr       GETCHR
 
 ;  else if(*ibufptr=='$') { ++ibufptr; const=gethex(); } if '$' get hex
 ;  else const=getdeci();         else assume its a decimal constant
 ; if(errcode) return(0);         if error abort
 
-GETCON2             equ       *
                     ldx       IBUFPTR
                     pshx
                     cmpa      #'$'
-                    bne       GETCON3
+                    bne       Decimal@@
                     jsr       INCIBP
                     jsr       GETHEX
-                    bra       GETCON4
+                    bra       Go@@
 
-GETCON3             jsr       GETDECI
+Decimal@@           jsr       GETDECI
 
 ; *tbufptr++=ICONTOK;            put integer constant token in buffer
 ; putint(const);                 follow it with the constant
@@ -2160,8 +2153,7 @@ GETCON3             jsr       GETDECI
 ; return(NUM);           return the constant type
 ; }
 
-GETCON4             equ       *
-                    psha
+Go@@                psha
                     lda       #ICONTOK
                     jsr       PUTTOK
                     pula
@@ -2172,14 +2164,15 @@ GETCON4             equ       *
                     tba
                     jsr       PUTTOK
                     pulx
-GETCON5             lda       ,x
+Loop@@              lda       ,x
                     jsr       PUTTOK
                     inx
                     decb
-                    bne       GETCON5
+                    bne       Loop@@
                     lda       #NUM
                     rts
 
+;*******************************************************************************
 ;***** getdeci() *****/
 ;
 ; *getdeci()
@@ -2198,34 +2191,33 @@ GETCON5             lda       ,x
 ; return(num);           return the value
 ; *}
 
-GETDECI             equ       *
+GETDECI             proc
                     pshy
                     clra
-                    psha
-                    psha
+                    psha:2
                     tsy
                     ldx       IBUFPTR
                     lda       ,x
                     jsr       NUMERIC
-                    bcs       GETDECI1
+                    bcs       Loop@@
                     lda       #SYTXERR
                     bra       CHCKERR
 
-GETDECI1            lda       ,x
+Loop@@              lda       ,x
                     jsr       NUMERIC
                     bcc       GETDECI3
                     jsr       ADDDIG
-                    bpl       GETDECI1
+                    bpl       Loop@@
                     lda       #INTOVERR
                     bra       CHCKERR
 
 GETDECI3            stx       IBUFPTR
                     ldd       ,y
-                    ins
-                    ins
+                    ins:2
                     puly
                     rts
 
+;*******************************************************************************
 ;***** gethex() *****/
 ;
 ; *gethex()
@@ -2237,11 +2229,10 @@ GETDECI3            stx       IBUFPTR
 ; if(hexdig(*ibufptr)==0)        is the char a hex digit?
 ;  { errcode=IVHEXERR; return; } no. flag error & return
 
-GETHEX              equ       *
+GETHEX              proc
                     pshy
                     clra
-                    psha
-                    psha
+                    psha:2
                     tsy
                     ldx       IBUFPTR
                     lda       ,x
@@ -2249,10 +2240,8 @@ GETHEX              equ       *
                     bcs       GETHEX1
                     lda       #IVHEXERR
 CHCKERR             tst       RUNFLAG
-                    beq       GETHEX5
-                    jmp       RPTRERR
-
-GETHEX5             jmp       RPTERR
+                    jne       RPTRERR
+                    jmp       RPTERR
 
 ; while(hexdig(c=*ibufptr))      while a hex digit is in the buffer
 ; {
@@ -2271,13 +2260,13 @@ GETHEX1             equ       *
                     bcc       GETDECI3
                     ldd       ,y
                     lsld
-                    bcs       GETHEX3
+                    bcs       Overflow@@
                     lsld
-                    bcs       GETHEX3
+                    bcs       Overflow@@
                     lsld
-                    bcs       GETHEX3
+                    bcs       Overflow@@
                     lsld
-                    bcs       GETHEX3
+                    bcs       Overflow@@
                     std       ,y
                     lda       ,x
                     jsr       ToUpper
@@ -2292,9 +2281,10 @@ GETHEX4             clra
                     std       ,y
                     bra       GETHEX1
 
-GETHEX3             lda       #HEXOVERR
+Overflow@@          lda       #HEXOVERR
                     bra       CHCKERR
 
+;*******************************************************************************
 ;***** hexdig() *****/
 ;
 ; *hexdig(c)
@@ -2303,22 +2293,23 @@ GETHEX3             lda       #HEXOVERR
 ; return(numeric(c) | (c>='A' & c<='F')); return true if c is hex
 ; *}
 
-HEXDIG              equ       *
+HEXDIG              proc
                     jsr       NUMERIC
-                    bcc       HEXDIG1
+                    bcc       Letter@@
                     rts
 
-HEXDIG1             jsr       ToUpper
+Letter@@            jsr       ToUpper
                     cmpa      #'A'
-                    blo       HEXDIG2
+                    blo       Done@@
                     cmpa      #'F'
-                    bhi       HEXDIG2
+                    bhi       Done@@
                     sec
                     rts
 
-HEXDIG2             clc
+Done@@              clc
                     rts
 
+;*******************************************************************************
 ;***** getscon *****/
 ;
 ; *getscon()
@@ -2331,7 +2322,7 @@ HEXDIG2             clc
 ;                     and reserve a byte for string length
 ; *tbufptr++=*ibufptr++;   put 1st quote in token buffer
 
-GETSCON             equ       *
+GETSCON             proc
                     ldb       #2
                     lda       #SCONTOK
                     jsr       PUTTOK
@@ -2351,18 +2342,17 @@ GETSCON             equ       *
 ;  ++count;              up byte count
 ; }
 
-GETSCON1            equ       *
-                    jsr       GETNXCHR
+Loop@@              jsr       GETNXCHR
                     cmpa      #'"'
-                    beq       GETSCON2
+                    beq       Quote@@
                     cmpa      #EOL
-                    bne       GETSCON3
+                    bne       Cont@@
                     lda       #MISQUERR
                     jmp       RPTERR
 
-GETSCON3            jsr       PUTTOK
+Cont@@              jsr       PUTTOK
                     incb
-                    bra       GETSCON1
+                    bra       Loop@@
 
 ; *tbufptr++=c;          put closing quote in token buffer
 ; ++ibufptr;             advance input buffer pointer
@@ -2370,15 +2360,15 @@ GETSCON3            jsr       PUTTOK
 ; return;
 ; *}
 
-GETSCON2            equ       *
-                    jsr       PUTTOK
-GETSCON4            pulx
+Quote@@             jsr       PUTTOK
+                    pulx
                     stb       ,x
                     rts
 ;                   include   'basiclb5.mod'
                     title     BASICLB5
                     page
 
+;*******************************************************************************
 ;***** getfun() *****/
 ;
 ; *getfun()
@@ -2396,81 +2386,84 @@ GETSCON4            pulx
 ; return(type);
 ; *}
 
-GETFUN              equ       *
+GETFUN              proc
                     ldx       #FUNCTBL
-GETFUN1             jsr       STREQ
-                    bcs       GETFUN2
-GETFUN3             inx
+Loop@@              jsr       STREQ
+                    bcs       Func@@
+FindNull@@          inx
                     lda       ,x
-                    bne       GETFUN3
+                    bne       FindNull@@
                     ldb       #4
                     abx
                     tst       ,x
-                    bne       GETFUN1
+                    bne       Loop@@
                     clra
                     rts
 
-GETFUN2             lda       #FUNCTFLG
+Func@@              lda       #FUNCTFLG
                     jsr       PUTTOK
                     lda       1,x
                     ldx       2,x
                     jmp       ,x
 
 FUNCTBL             equ       *
-FDIVS               fcs       "FDIV"
+FDIVS               fcs       'FDIV'
                     fcb       FDIVTOK
                     fdb       BNUMFUN
-CHRS                fcs       "CHR$"
+CHRS                fcs       'CHR$'
                     fcb       CHRTOK
                     fdb       UNUMFUN
-ABS                 fcs       "ABS"
+ABS                 fcs       'ABS'
                     fcb       ABSTOK
                     fdb       UNUMFUN
-RND                 fcs       "RND"
+RND                 fcs       'RND'
                     fcb       RNDTOK
                     fdb       UNUMFUN
-SGN                 fcs       "SGN"
+SGN                 fcs       'SGN'
                     fcb       SGNTOK
                     fdb       UNUMFUN
-TABS                fcs       "TAB"
+TABS                fcs       'TAB'
                     fcb       TABTOK
                     fdb       UNUMFUN
-ADCS                fcs       "ADC"
+ADCS                fcs       'ADC'
                     fcb       ADCTOK
                     fdb       UNUMFUN
-CALL                fcs       "CALL"
+CALL                fcs       'CALL'
                     fcb       CALLTOK
                     fdb       UNUMFUN
-PEEK                fcs       "PEEK"
+PEEK                fcs       'PEEK'
                     fcb       PEEKTOK
                     fdb       UNUMFUN
-                    fcs       "EEP"
+                    fcs       'EEP'
                     fcb       FEEPTOK
                     fdb       UNUMFUN
-HEX2                fcs       "HEX2"
+HEX2                fcs       'HEX2'
                     fcb       HEX2TOK
                     fdb       UNUMFUN
-HEX                 fcs       "HEX"
+HEX                 fcs       'HEX'
                     fcb       HEXTOK
                     fdb       UNUMFUN
-                    fcs       "PORT"
+                    fcs       'PORT'
                     fcb       FPRTATOK
                     fdb       FINDPORT
-                    fcs       "TIME"
+                    fcs       'TIME'
                     fcb       FTIMETOK
                     fdb       XTIMEF
-                    fcs       "PACC"
+                    fcs       'PACC'
                     fcb       FPACCTOK
                     fdb       XPACCF
-
                     fcb       0                   ; END OF TABLE MARKER.
 
-XPOKE               equ       *
+;*******************************************************************************
+
+XPOKE               proc
                     ldx       TBUFPTR             ; GET TOKEN BUFFER POINTER.
                     dex                           ; DEC. TO COMPENSATE FOR PUTTOK DONE IN XLATE.
                     stx       TBUFPTR             ; SAVE NEW POINTER VALUE. FALL THROUGH TO BNUMFUN.
                     lda       ,x                  ; GET TOKEN BACK INTO THE A-REG.
+;                   bra       BNUMFUN
 
+;*******************************************************************************
 ;***** xfdiv() *****/
 ;
 ; *xfdiv()
@@ -2481,17 +2474,15 @@ XPOKE               equ       *
 ; return(NUM);
 ; *}
 
-BNUMFUN             equ       *
+BNUMFUN             proc
                     pshy
                     ldb       #NUM
-                    pshb
-                    pshb
+                    pshb:2
                     tsy
                     ldb       #2
                     jsr       DOFUNCT
 ;                   lda       #NUM
-                    pula
-                    pula
+                    pula:2
                     puly
                     rts
 
@@ -2554,7 +2545,7 @@ BNUMFUN             equ       *
 ; return(NUM);           return the function type
 ; *}
 
-XEEP                equ       *                   ; PROGRAM A WORD OF EEPROM.
+XEEP                proc                          ; PROGRAM A WORD OF EEPROM.
                     ldx       TBUFPTR             ; COMPENSATE FOR TOKEN PLACEMENT BU UNUMFUN
                     dex                           ; ROUTINE.
                     stx       TBUFPTR             ; SAVE POINTER.
@@ -2562,7 +2553,9 @@ XEEP                equ       *                   ; PROGRAM A WORD OF EEPROM.
                     bsr       UNUMFUN             ; GO TREAT AS A UNIARY NUMERIC FUNCTION.
                     jmp       ASIGNMT1            ; GO USE ASSIGNMENT CODE FOR REST OF FUNCTION.
 
-UNUMFUN             equ       *
+;*******************************************************************************
+
+UNUMFUN             proc
                     pshy
                     ldb       #NUM
                     pshb
@@ -2584,15 +2577,15 @@ UNUMFUN             equ       *
 ; *tbufptr++=OPARNTOK;           put open paren in token buffer
 ; ++ibufptr;
 
-DOFUNCT             equ       *
+DOFUNCT             proc
                     jsr       PUTTOK
                     jsr       GETCHR
                     cmpa      #'('
-                    beq       DOFUNCT1
+                    beq       LParen@@
 DOFUNCT5            lda       #MPARNERR
                     jmp       RPTERR
 
-DOFUNCT1            jsr       INCIBP
+LParen@@            jsr       INCIBP
                     lda       #OPARNTOK
                     jsr       PUTTOK
 
@@ -2607,7 +2600,7 @@ DOFUNCT1            jsr       INCIBP
 ;  ++ibufptr;                    point to the next character
 ; }
 
-DOFUNCT4            lda       ,y
+Loop@@              lda       ,y
                     iny
                     pshb
                     jsr       XEXPRES
@@ -2616,7 +2609,7 @@ DOFUNCT4            lda       ,y
                     beq       DOFUNCT3
                     jsr       CHKCOMA
                     bcc       DOFUNCT5
-                    bra       DOFUNCT4
+                    bra       Loop@@
 
 ; if(*ibufptr!=')')              must see closing paren
 ; {
@@ -2631,28 +2624,32 @@ DOFUNCT4            lda       ,y
 ; return;
 ; *}
 
-DOFUNCT3            equ       *
-                    jsr       GETCHR
+DOFUNCT3            jsr       GETCHR
                     cmpa      #')'
                     bne       DOFUNCT5
                     jsr       INCIBP
                     lda       #CPARNTOK
                     jmp       PUTTOK              ; PUT TOKEN IN BUFFER & RETURN.
 
-FINDPORT            equ       *
+;*******************************************************************************
+
+FINDPORT            proc
                     jsr       GETNXCHR            ; GO GET PORT "NUMBER".
                     jsr       ToUpper             ; Translate the character to upper case.
                     cmpa      #'A'                ; IS IT AN A OR HIGHER?
-                    bhs       FINDPRT1            ; YES. GO CHECK UPPER LIMIT.
-FINDPRT2            lda       #ILPRTERR           ; NO. ILLEGAL PORT "NUMBER".
+                    bhs       CheckUpperLimit@@   ; YES. GO CHECK UPPER LIMIT.
+Fail@@              lda       #ILPRTERR           ; NO. ILLEGAL PORT "NUMBER".
                     jmp       RPTERR              ; REPORT ERROR.
 
-FINDPRT1            cmpa      #'E'                ; IS IT HIGHER THAN AN "E"?
-                    bhi       FINDPRT2            ; YES. ILLEGAL PORT.
+CheckUpperLimit@@   cmpa      #'E'                ; IS IT HIGHER THAN AN "E"?
+                    bhi       Fail@@              ; YES. ILLEGAL PORT.
                     suba      #'A'                ; SUBTRACT "BASE" PORT OF A
                     adda      #FPRTATOK           ; ADD IN "BASE" TOKEN.
-                                                  ; STEAL SOME CODE.
-XPACCF              equ       *
+;                   bra       XPACCF              ; STEAL SOME CODE.
+
+;*******************************************************************************
+
+XPACCF              proc
 XTIMEF              jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
                     lda       #NUM                ; RETURN TYPE "NUM".
                     rts                           ; RETURN.
@@ -2677,11 +2674,11 @@ XTIMEF              jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
 ; if(errcode) return;            if error, return
 ; blanks();              skip blanks
 
-XON                 equ       *
+XON                 proc
 ;                   jsr       BLANKS
                     lda       #NUM
                     jsr       XEXPRES
-XON1                jsr       BLANKS
+                    jsr       BLANKS
                     ldx       #GOTO
                     jsr       STREQ
                     bcc       XON2
@@ -2717,7 +2714,6 @@ XON5                jsr       BLANKS
 ; }
 ; return;
 ; *}
-
                     jsr       CHKCOMA
                     bcs       XON6
                     rts
@@ -2726,36 +2722,44 @@ XON6                jsr       BLANKS
                     lda       #LCONTOK
                     jsr       PUTTOK
                     jsr       GETLINUM
-XON8                jsr       PUTDTOK
+                    jsr       PUTDTOK
                     bra       XON5
 
-XONIRQ              equ       *                   ; "ONIRQ" HAS A FUNCTION CODE & LINE NUMBER.
-XONTIME             equ       *
+;*******************************************************************************
+
+XONIRQ              proc                          ; "ONIRQ" HAS A FUNCTION CODE & LINE NUMBER.
+XONTIME             proc
                     lda       #NUM                ; GO GET THE VALUE OF THE TIMER WE SHOULD GO ON.
                     jsr       XEXPRES
                     jsr       BLANKS              ; SKIP BLANKS.
                     jsr       CHKCOMA             ; GO CHECK FOR A COMMA.
-                    bcs       XONTIME1            ; IF PRESENT, IT'S OK.
+                    bcs       Go@@                ; IF PRESENT, IT'S OK.
 XONTIME2            lda       #MCOMAERR           ; IF NOT, REPORT AN ERROR.
                     jmp       RPTERR
 
-XONTIME1            jsr       BLANKS
+Go@@                jsr       BLANKS
                     lda       #LCONTOK            ; GET THE LINE CONSTANT TOKEN.
                     jsr       PUTTOK              ; PUT IT IN THE TOKEN BUFFER.
                     jsr       GETLINUM            ; GO GET A LINE NUMBER.
                     jmp       PUTDTOK             ; PUT THE LINE NUMBER IN THE TOKEN BUFFER.
 
-XONPACC             equ       *
+;*******************************************************************************
+
+XONPACC             proc
                     bsr       GETARG              ; GET AN ARGUMENT AND A COMMA.
                     bra       XONTIME             ; GO USE SOME OTHER CODE.
 
-GETARG              lda       #NUM                ; GO GET THE "OPERATING MODE" EXPRESSION.
+;*******************************************************************************
+
+GETARG              proc
+                    lda       #NUM                ; GO GET THE "OPERATING MODE" EXPRESSION.
                     jsr       XEXPRES
                     jsr       BLANKS              ; SKIP BLANKS.
                     jsr       CHKCOMA             ; GO CHECK FOR COMMA.
                     bcc       XONTIME2            ; NO COMMA. REPORT ERROR.
                     jmp       BLANKS              ; SKIP BLANKS AFTER COMMA AND RETURN.
 
+;*******************************************************************************
 ;***** xif() *****/
 ;
 ; *xif()
@@ -2768,7 +2772,7 @@ GETARG              lda       #NUM                ; GO GET THE "OPERATING MODE" 
 ; if(errcode) return;            if error, return
 ; blanks();                      if not, skip blanks
 
-XIF                 equ       *
+XIF                 proc
 ;                   jsr       BLANKS
                     inc       IFWHFLAG
                     lda       #NUM
@@ -2827,8 +2831,7 @@ XIF6                jsr       PUTDTOK
 ;  *tbufptr++=ELSETOK;           put ELSE token in the buffer
 ;  blanks();                     skip any blanks after ELSE
 
-XIF4                equ       *
-                    jsr       BLANKS
+XIF4                jsr       BLANKS
                     ldx       #ELSES
                     jsr       STREQ
                     bcs       XIF7
@@ -2851,7 +2854,6 @@ XIF7                lda       #ELSETOK
 ;   xlate();
 ;  }
 ; }
-
                     jsr       GETCHR
                     jsr       NUMERIC
                     bcs       XIF8
@@ -2866,9 +2868,10 @@ XIF10               jmp       PUTDTOK
 ; return;                in any case, return
 ; *}
 
-THENS               fcs       "THEN"
-ELSES               fcs       "ELSE"
+THENS               fcs       'THEN'
+ELSES               fcs       'ELSE'
 
+;*******************************************************************************
 ;***** xfor() *****/
 ;
 ; *xfor()
@@ -2880,7 +2883,7 @@ ELSES               fcs       "ELSE"
 ; if((type!=NUM)|(*ibufptr++!='='))      is it a numerical variable?
 ; { errcode=IVEXPERR; return; }  no. flag error & return
 
-XFOR                equ       *
+XFOR                proc
 ;                   jsr       BLANKS
                     jsr       GETVAR
                     cmpa      #NUM
@@ -2950,9 +2953,10 @@ XFOR3               lda       #STEPTOK
                     lda       #NUM
                     jmp       XEXPRES
 
-TO                  fcs       "TO"
-STEP                fcs       "STEP"
+TO                  fcs       'TO'
+STEP                fcs       'STEP'
 
+;*******************************************************************************
 ;***** xnext() *****/
 ;
 ; *xnext()
@@ -2963,16 +2967,16 @@ STEP                fcs       "STEP"
 ; return;
 ; *}
 
-XNEXT               equ       *
+XNEXT               proc
 ;                   jsr       BLANKS
                     jsr       GETVAR
                     cmpa      #NUM
-                    beq       XNEXT1
+                    beq       Done@@
                     lda       #SYTXERR
                     jmp       RPTERR
+Done@@              rts
 
-XNEXT1              rts
-
+;*******************************************************************************
 ;***** xprint() *****/
 ;
 ; *xprint()
@@ -2980,7 +2984,7 @@ XNEXT1              rts
 ; *tbufptr++=PRINTTOK;   put PRINT token in buffer
 ; blanks();             skip blanks
 
-XPRINT              equ       *
+XPRINT              proc
 ;                   jsr       BLANKS
                     jsr       GETCHR
                     cmpa      #'#'                ; HAS AN ALTERNATE PORT BEEN SPECIFIED?
@@ -3039,18 +3043,22 @@ XPRINT6             lda       #SEMITOK
                     bsr       CHKCOMA2
                     bra       XPRINT9
 
-CHKCOMA             jsr       GETCHR              ; GET CHARACTER FROM INPUT BUFFER.
+;*******************************************************************************
+
+CHKCOMA             proc
+                    jsr       GETCHR              ; GET CHARACTER FROM INPUT BUFFER.
                     cmpa      #COMMA              ; IS IT A COMMA?
-                    beq       CHKCOMA1            ; YES. PUT IT IN THE TOKEN BUFFER.
+                    beq       Go@@                ; YES. PUT IT IN THE TOKEN BUFFER.
                     clc                           ; NO. FLAG NO COMMA FOUND.
                     rts                           ; RETURN.
 
-CHKCOMA1            lda       #COMMATOK           ; GET THE COMMA TOKEN.
+Go@@                lda       #COMMATOK           ; GET THE COMMA TOKEN.
 CHKCOMA2            jsr       PUTTOK              ; PUT THE TOKEN IN THE BUFFER.
                     jsr       INCIBP              ; BUMP THE INPUT BUFFER POINTER.
                     sec
                     rts                           ; RETURN.
 
+;*******************************************************************************
 ;***** xinput() *****/
 ;
 ; *xinput()
@@ -3058,7 +3066,7 @@ CHKCOMA2            jsr       PUTTOK              ; PUT THE TOKEN IN THE BUFFER.
 ; *tbufptr++=INPUTTOK;           put INPUT token in buffer
 ; blanks();                      skip blanks
 
-XINPUT              equ       *
+XINPUT              proc
 ;                   jsr       BLANKS
                     bsr       XCHKDEV             ; GO CHECK FOR AN ALTERNATE DEVICE NUMBER.
 
@@ -3084,6 +3092,7 @@ XINPUT2             jsr       BLANKS
 XINPUT3             lda       #MCOMAERR
                     jmp       RPTERR
 
+;*******************************************************************************
 ;***** inreadcm() *****/
 ;
 ; *inreadcm()
@@ -3103,23 +3112,25 @@ XINPUT3             lda       #MCOMAERR
 ; }
 ; *}
 
-XDIM                equ       *
-INREADCM            equ       *
-XREAD               equ       *
+XDIM                proc
+INREADCM            proc
+XREAD               proc
 ;                   jsr       BLANKS
                     jsr       GETVAR
-XREAD1              jsr       BLANKS
+                    jsr       BLANKS
                     bsr       CHKCOMA
                     bcs       XREAD
                     rts
 
-XCHKDEV             equ       *
+;*******************************************************************************
+
+XCHKDEV             proc
                     jsr       GETCHR
                     cmpa      #'#'                ; HAS AN ALTERNATE PORT BEEN SPECIFIED?
-                    beq       XCHKDEV1            ; NO. GO PROCESS THE REST OF THE PRINT STATEMENT.
+                    beq       Go@@                ; NO. GO PROCESS THE REST OF THE PRINT STATEMENT.
                     rts                           ; RETURN.
 
-XCHKDEV1            lda       #PNUMTOK            ; YES. PUT THE TOKEN INTO THE BUFFER.
+Go@@                lda       #PNUMTOK            ; YES. PUT THE TOKEN INTO THE BUFFER.
                     jsr       PUTTOK              ; DO IT.
                     jsr       INCIBP              ; POINT PAST THE "#".
                     jsr       BLANKS              ; SKIP SPACES BETWEEN '#' AND EXPRESION.
@@ -3130,7 +3141,9 @@ XCHKDEV1            lda       #PNUMTOK            ; YES. PUT THE TOKEN INTO THE 
                     bcc       XINPUT3             ; MISSING COMMA. GO REPORT THE ERROR.
                     rts                           ; IT WAS THERE. GO PROCESS THE REST OF THE STATEMENT.
 
-XINBYTE             equ       *
+;*******************************************************************************
+
+XINBYTE             proc
                     bsr       XCHKDEV             ; GO CHECK FOR ALTERNATE DEVICE.
                     jsr       BLANKS              ; SKIP BLANKS AFTER COMMA.
                     jmp       GETVAR              ; GO TRY TO GET A VARIABLE.
@@ -3163,12 +3176,13 @@ XINBYTE             equ       *
 ; return;
 ; *}
 
-XWHILE              equ       *
+XWHILE              proc
 ;                   jsr       BLANKS
                     inc       IFWHFLAG
                     lda       #NULL
                     jmp       XEXPRES
 
+;*******************************************************************************
 ;***** xendwh() *****/
 ;
 ; *xendwh()
@@ -3177,11 +3191,12 @@ XWHILE              equ       *
 ; return;
 ; *}
 
-XPACC               equ       *
-XTIME               equ       *
+XPACC               proc
+XTIME               proc
                     ldb       #NUM                ; SETUP TO USE CODE IN "ASIGNMT".
                     jmp       ASIGNMT1            ; GO DO ASSIGNMENT STATEMENT.
 
+;*******************************************************************************
 ;***** rpterr() *****/
 ;
 ; *rpterr()
@@ -3192,16 +3207,16 @@ XTIME               equ       *
 ; nl();
 ; while((c=*ptr++)!=EOL) outbyte(c);     print the input buffer
 
-RPTERR              equ       *
+RPTERR              proc
                     sta       ERRCODE
                     jsr       NL2
                     ldx       INBUFFS
-RPTERR1             lda       ,x
+Loop@@              lda       ,x
                     cmpa      #EOL
                     beq       RPTERR2
                     jsr       OUTBYTE
                     inx
-                    bra       RPTERR1
+                    bra       Loop@@
 
 ; nl();          go to next line
 ; ptr=inbuff;    point to begining of input buffer
@@ -3209,11 +3224,9 @@ RPTERR1             lda       ,x
 ; pl("^^^");  point to error
 ; nl();
 
-RPTERR2             equ       *
-                    jsr       NL
+RPTERR2             jsr       NL
                     ldx       IBUFPTR
-                    dex
-                    dex
+                    dex:2
                     cpx       INBUFFS
                     bls       RPTERR4
                     stx       IBUFPTR
@@ -3227,7 +3240,7 @@ RPTERR4             ldx       #ARROWS
                     jsr       PL
                     jsr       NL
                     bsr       RPTERR5
-RPTERR6             lda       #1
+                    lda       #1
                     sta       CONTFLAG
                     jmp       MAIN3
 
@@ -3242,13 +3255,15 @@ RPTERR5             ldx       #ERRORS
                     clra
                     jmp       OUTDECI
 
-ARROWS              fcs       "^^^"
-ERRORS              fcs       "ERROR # "
+ARROWS              fcs       '^^^'
+ERRORS              fcs       'ERROR # '
 
-RPTRERR             equ       *                   ; REPORT A RUN TIME ERROR.
+;*******************************************************************************
+
+RPTRERR             proc                          ; REPORT A RUN TIME ERROR.
                     sta       ERRCODE
                     jsr       RPTERR5
-RPTRERR1            ldx       #INLINE
+                    ldx       #INLINE
                     jsr       PL
                     ldd       CURLINE
                     jsr       OUTDECI
@@ -3257,11 +3272,10 @@ RPTRERR1            ldx       #INLINE
                     sta       CONTFLAG
                     jmp       MAINW
 
-BREAKS              fcc       "BREAK"
-INLINE              fcs       " IN LINE # "
-
+BREAKS              fcc       'BREAK'
+INLINE              fcs       ' IN LINE # '
           #ifz HC11
-
+;*******************************************************************************
 ;***** outdeci() *****/
 ;
 ; *outdeci(num)
@@ -3277,22 +3291,21 @@ INLINE              fcs       " IN LINE # "
 ;  outbyte('-');
 ; }
 
-OUTDECI             equ       *
+OUTDECI             proc
                     cpd       #0
-                    bne       OUTDECI7
+                    bne       Go@@
                     lda       #'0'
                     jmp       OUTBYTE
 
-OUTDECI7            pshy
+Go@@                pshy
                     pshd
                     clrb
-                    pshb
-                    pshb
+                    pshb:2
                     tsy
-                    ldd       2,Y
+                    ldd       2,y
                     bpl       OUTDECI1
                     negd
-                    std       2,Y
+                    std       2,y
                     lda       #'-'
                     jsr       OUTBYTE
 
@@ -3306,18 +3319,17 @@ OUTDECI7            pshy
 ; return;
 ; *}
 
-OUTDECI1            equ       *
-                    ldx       #PWRTEN
-OUTDECI2            ldd       2,Y
-                    clr       1,Y
+OUTDECI1            ldx       #PWRTEN
+OUTDECI2            ldd       2,y
+                    clr       1,y
 OUTDECI3            subd      ,x
                     bmi       OUTDECI5
-                    inc       1,Y
+                    inc       1,y
                     bra       OUTDECI3
 
 OUTDECI5            addd      ,x
-                    std       2,Y
-                    lda       1,Y
+                    std       2,y
+                    lda       1,y
                     bne       OUTDECI6
                     tst       ,y
                     beq       OUTDECI4
@@ -3325,14 +3337,10 @@ OUTDECI6            adda      #$30
                     ldb       #1
                     stb       ,y
                     jsr       OUTBYTE
-OUTDECI4            inx
-                    inx
+OUTDECI4            inx:2
                     tst       1,x
                     bne       OUTDECI2
-                    ins
-                    ins
-                    ins
-                    ins
+                    ins:4
                     puly
                     rts
 
@@ -3342,33 +3350,30 @@ PWRTEN              fdb       10000
                     fdb       10
                     fdb       1
                     fdb       0
-
           #else
-
-OUTDECI             equ       *
+OUTDECI             proc
                     cpd       #0
-                    bne       OUTDECI1
+                    bne       Go@@
                     lda       #'0'
                     jmp       OUTBYTE
 
-OUTDECI1            equ       *
-                    pshy
+Go@@                pshy
                     pshd                          ; SAVE THE NUMBER TO PRINT.
                     ldd       #10000              ; NUMBER TO START DIVIDING BY.
                     pshd
                     clrb                          ; SET INITAL VALUE OF LEADING ZERO SUPRESS FLAG.
                     pshb
                     tsy
-                    ldd       3,Y                 ; IS THE NUMBER NEGATIVE?
+                    ldd       3,y                 ; IS THE NUMBER NEGATIVE?
                     bpl       OUTDECI2            ; NO. GO PRINT THE NUMBER.
                     negd                          ; YES. MAKE THE NUMBER POSITIVE.
-                    std       3,Y                 ; SAVE THE RESULT.
+                    std       3,y                 ; SAVE THE RESULT.
                     lda       #'-'                ; PRINT A MINUS SIGN TO SHOW IT'S NEGATIVE.
                     jsr       OUTBYTE
-OUTDECI2            ldd       3,Y                 ; GET THE DIVIDEND.
-                    ldx       1,Y                 ; GET THE DIVISOR.
+OUTDECI2            ldd       3,y                 ; GET THE DIVIDEND.
+                    ldx       1,y                 ; GET THE DIVISOR.
                     idiv                          ; DO THE DIVIDE.
-                    std       3,Y                 ; SAVE THE REMAINDER.
+                    std       3,y                 ; SAVE THE REMAINDER.
                     xgdx                          ; PUT QUOTIENT IN D.
                     cpd       #0                  ; IS THE QUOTIENT 0?
                     bne       OUTDECI3            ; NO. GO OUTPUT THE NUMBER.
@@ -3379,10 +3384,10 @@ OUTDECI3            tba                           ; PUT THE NUMBER IN THE A-REG.
                     ldb       #1                  ; MAKE THE ZERO SUPRESS FLAG NON-ZERO.
                     stb       ,y
                     jsr       OUTBYTE             ; OUTPUT THE NUMBER.
-OUTDECI4            ldd       1,Y                 ; GET CURRENT DIVISOR.
+OUTDECI4            ldd       1,y                 ; GET CURRENT DIVISOR.
                     ldx       #10                 ; DIVIDE IT BY 10.
                     idiv
-                    stx       1,Y                 ; SAVE RESULT. ARE WE DONE?
+                    stx       1,y                 ; SAVE RESULT. ARE WE DONE?
                     bne       OUTDECI2            ; NO KEEP GOING.
                     ldb       #5                  ; DEALLOCATE LOCALS.
                     aby
@@ -3407,13 +3412,13 @@ OUTDECI4            ldd       1,Y                 ; GET CURRENT DIVISOR.
 ;  return;
 ; }
 
-STORLIN             equ       *
+STORLIN             proc
                     lda       #1                  ; set the continue flag.
                     sta       CONTFLAG            ; we don't allow continues if the program has been altered.
                     ldx       TKNBUFS             ; point to the start of the token buffer
                     ldd       ,x                  ; get the first 2 bytes of the token buffer (the line number).
                     cpd       HILINE              ; was the entered lines number higher than the highest so far?
-                    bls       STORLIN1            ; no. go do an insert or replace operation.
+                    bls       Go@@                ; no. go do an insert or replace operation.
                     jsr       APENDLIN            ; yes. just append the line to the end of the program buffer.
                     ldx       TKNBUFS             ; point to the start of the token buffer
                     ldd       ,x                  ; get the first 2 bytes of the token buffer (the line number).
@@ -3430,8 +3435,7 @@ STORLIN             equ       *
 ; return;
 ; *}
 
-STORLIN1            equ       *
-                    bsr       FINDLINE
+Go@@                bsr       FINDLINE
                     ldd       ,x
                     pshx
                     ldx       TKNBUFS
@@ -3440,6 +3444,7 @@ STORLIN1            equ       *
                     bne       INSRTLIN
                     jmp       REPLINE
 
+;*******************************************************************************
 ; ***** delline() *****
 ;
 ; *delline(num)            delete line from basic buffer
@@ -3450,7 +3455,7 @@ STORLIN1            equ       *
 ; if(num > hiline) return;       line number can't be there, return
 ; linum=findline(num);           look for the requested line #
 
-DELLINE             equ       *
+DELLINE             proc
                     pshd                          ; SAVE THE LINE NUMBER TO DELETE.
                     tsy                           ; POINT TO THE LINE NUMBER WE SAVED.
                     cpd       HILINE              ; IS IT HIGHER THAN THE HIGHEST LINE ENTERED SO FAR?
@@ -3469,7 +3474,6 @@ DELLINE1            bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
 ; if(num==hiline) hiline=findhiln();
 ; return;
 ; *}
-
                     ldd       ,x                  ; GET THE LINE NUMBER THAT WAS FOUND.
                     cpd       ,y                  ; WAS THE LINE NUMBER FOUND THE ONE THAT WAS REQUESTED TO BE DELETED.
                     bne       DELLINE2            ; NO. THE LINE DOESN'T EXIST. JUST RETURN.
@@ -3496,24 +3500,25 @@ DELLINE1            bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
 ; return;
 ; *}
 
-CLOSESPC            equ       *                   ; ENTERED WITH
+CLOSESPC            proc                          ; ENTERED WITH
                     pshy                          ; SAVE THE CURRENT VALUE OF Y.
-                    pshx                          ; TRANSFER X TO Y BY... PUSHING X AND THEN
-                    puly                          ; PULLING Y.
+                    txy                           ; TRANSFER X TO Y
                     aby                           ; ADD THE LENGTH TO Y.
-CLOSESP1            cpy       BASEND              ; HAVE WE MOVED ALL THE BYTES?
-                    bhs       CLOSESP2            ; YES. RETURN.
+
+Loop@@              cpy       BASEND              ; HAVE WE MOVED ALL THE BYTES?
+                    bhs       Done@@              ; YES. RETURN.
                     lda       ,y                  ; NO. GET A BYTE.
                     sta       ,x                  ; MOVE IT.
                     inx                           ; ADVANCE THE DESTINATION POINTER.
                     iny                           ; ADVANCE THE SOURCE POINTER.
-                    bra       CLOSESP1            ; GO CHECK TO SEE IF WE'RE DONE.
+                    bra       Loop@@              ; GO CHECK TO SEE IF WE'RE DONE.
 
-CLOSESP2            stx       BASEND              ; SAVE THE NEW 'END OF BASIC PROGRAM' POINTER.
+Done@@              stx       BASEND              ; SAVE THE NEW 'END OF BASIC PROGRAM' POINTER.
                     jsr       MoveVarsDn          ; MOVE ALL THE VARIABLES DOWN.
                     puly                          ; RESTORE Y.
                     rts                           ; RETURN.
 
+;*******************************************************************************
 ;***** findline() *****/        return pointer to line number or next
 ;                                   highest line number
 ; *findline(linenum)
@@ -3530,17 +3535,16 @@ CLOSESP2            stx       BASEND              ; SAVE THE NEW 'END OF BASIC P
 ; return(basbufp);               return the pointer
 ; *}
 
-FINDLINE            equ       *
+FINDLINE            proc
                     ldx       BASBEG
-FINDLIN1            cpd       ,x
-                    bls       FINDLIN2
+Loop@@              cpd       ,x
+                    bls       Done@@
                     pshb
                     ldb       2,x
                     abx
                     pulb
-                    bra       FINDLIN1
-
-FINDLIN2            rts
+                    bra       Loop@@
+Done@@              rts
 
 ;***** findhiln() *****
 ;
@@ -3558,18 +3562,17 @@ FINDLIN2            rts
 ; return(lnum);                  return highest line number
 ; *}
 
-FINDHILN            equ       *
+FINDHILN            proc
                     ldx       BASBEG
-FINDHIL1            cpx       BASEND
-                    beq       FINDHIL2
+Loop@@              cpx       BASEND
+                    beq       Done@@
                     ldd       ,x
                     pshb
                     ldb       2,x
                     abx
                     pulb
-                    bra       FINDHIL1
-
-FINDHIL2            rts
+                    bra       Loop@@
+Done@@              rts
 
 ;***** insrtlin() *****/
 ;
@@ -3582,7 +3585,7 @@ FINDHIL2            rts
 ; return;
 ; *}
 
-INSRTLIN            equ       *
+INSRTLIN            proc
                     pshx
                     ldx       TKNBUFS
                     ldb       2,x
@@ -3608,13 +3611,13 @@ INSRTLIN            equ       *
 ; return;
 ; *}
 
-OPENSPC             equ       *
+OPENSPC             proc
                     pshy
                     pshx
                     ldx       VAREND
                     abx
                     cpx       BASMEND
-                    bhi       OPENSPC4
+                    bhi       Fail@@
                     jsr       MoveVarsUp
                     ldx       BASEND
                     pshx
@@ -3622,29 +3625,28 @@ OPENSPC             equ       *
                     pshx
                     tsy
                     ldd       ,y
-OPENSPC1            std       BASEND
-OPENSPC3            ldd       2,Y
-                    cpd       4,Y
-                    blo       OPENSPC2
-                    ldx       2,Y
+                    std       BASEND
+Loop@@              ldd       2,y
+                    cpd       4,y
+                    blo       Done@@
+                    ldx       2,y
                     lda       ,x
                     dex
-                    stx       2,Y
+                    stx       2,y
                     ldx       ,y
                     sta       ,x
                     dex
                     stx       ,y
-                    bra       OPENSPC3
+                    bra       Loop@@
 
-OPENSPC4            lda       #OMEMERR
+Fail@@              lda       #OMEMERR
                     jmp       RPTERR
 
-OPENSPC2            pulx
-                    pulx
-                    pulx
+Done@@              pulx:3
                     puly
                     rts
 
+;*******************************************************************************
 ;***** putline() *****/         move line from token buffer to program
 ;                                   buffer
 ; *putline(cptr)
@@ -3661,21 +3663,22 @@ OPENSPC2            pulx
 ; return;
 ; *}
 
-PUTLINE             equ       *
+PUTLINE             proc
                     pshx
                     ldx       TKNBUFS
                     ldb       2,x
                     pulx
                     ldy       TKNBUFS
-PUTLINE1            lda       ,y
+Loop@@              lda       ,y
                     iny
                     sta       ,x
                     inx
                     decb
-                    bne       PUTLINE1
+                    bne       Loop@@
                     rts
 
-;***** apendlin() *****/        appent line to end of program buffer
+;*******************************************************************************
+;***** apendlin() *****/        append line to end of program buffer
 ;
 ; *apendlin()
 ; *{
@@ -3688,13 +3691,13 @@ PUTLINE1            lda       ,y
 ; return;
 ; *}
 
-APENDLIN            equ       *
+APENDLIN            proc
                     ldx       TKNBUFS
                     ldb       2,x
                     ldx       VAREND
                     abx
                     cpx       BASMEND
-                    bhi       APENDLN1
+                    bhi       Fail@@
 ;                   ldb       TKNBUF+2
                     jsr       MoveVarsUp
                     ldx       BASEND
@@ -3704,9 +3707,10 @@ APENDLIN            equ       *
                     std       BASEND
                     bra       PUTLINE
 
-APENDLN1            lda       #OMEMERR
+Fail@@              lda       #OMEMERR
                     jmp       RPTERR
 
+;*******************************************************************************
 ;***** repline() *****/         replace line in buffer
 ;
 ; *repline(ptr)
@@ -3721,14 +3725,14 @@ APENDLN1            lda       #OMEMERR
 ;       putline(ptr);
 ;      }
 
-REPLINE             equ       *
+REPLINE             proc
                     ldb       2,x
                     pshx
                     ldx       TKNBUFS
                     subb      2,x
                     pulx
-                    bne       REPLINE1
-                    bra       PUTLINE
+                    bne       Go@@                ; /change to BEQ PUTLINE
+                    bra       PUTLINE             ;/
 
 ; else if(lendif<0)              if line in tknbuf is larger
 ;      {
@@ -3738,8 +3742,7 @@ REPLINE             equ       *
 ;       putline(ptr);            if ok, copy line to program buffer
 ;      }
 
-REPLINE1            equ       *
-                    bpl       REPLINE2
+Go@@                bpl       Shrink@@
                     negb
                     pshx
                     jsr       OPENSPC
@@ -3754,13 +3757,15 @@ REPLINE1            equ       *
 ; return;
 ; *}
 
-REPLINE2            equ       *
-                    pshx
+Shrink@@            pshx
                     jsr       CLOSESPC
                     pulx
                     bra       PUTLINE
 
-MoveVarsUp          pshy                          ; SAVE THE Y REGISTER.
+;*******************************************************************************
+
+MoveVarsUp          proc
+                    pshy                          ; SAVE THE Y REGISTER.
                     pshb                          ; SAVE THE BYTE COUNT.
                     ldx       VAREND              ; POINT TO THE END OF THE VARIABLE MEMORY SPACE.
                     ldy       VAREND              ; POINT TO THE END OF VARIABLE MEMORY SPACE.
@@ -3768,21 +3773,24 @@ MoveVarsUp          pshy                          ; SAVE THE Y REGISTER.
                     ldd       VAREND              ; GET THE CURRENT VARIABLE TABLE ENDING ADDRESS.
                     stx       VAREND              ; SAVE THE NEW END OF VARIABLE TABLE POINTER.
                     subd      VARBEGIN            ; CALCULATE THE NUMBER OF BYTES TO MOVE.
-                    beq       MOVEUP2             ; JUST RETURN IF THERE IS NOTHING TO MOVE.
+                    beq       Done@@              ; JUST RETURN IF THERE IS NOTHING TO MOVE.
                     std       VarSize             ; save the size of the variable table (9/12/89).
-MOVEUP1             lda       ,y                  ; GET A BYTE.
+Loop@@              lda       ,y                  ; GET A BYTE.
                     sta       ,x                  ; MOVE IT.
                     dex
                     dey
                     bsr       DecCount            ; DECREMENT THE BYTE COUNT. ARE WE DONE? (9/12/89).
-                    bpl       MOVEUP1             ; GO TILL WE'RE DONE.
+                    bpl       Loop@@              ; GO TILL WE'RE DONE.
                     inx                           ; ADJUST THE POINTER
-MOVEUP2             stx       VARBEGIN            ; SAVE THE NEW START OF VARIABLE TABLE POINTER.
+Done@@              stx       VARBEGIN            ; SAVE THE NEW START OF VARIABLE TABLE POINTER.
                     pulb                          ; RESTORE THE BYTE COUNT.
                     puly                          ; RESTORE Y.
                     rts                           ; RETURN.
 
-MoveVarsDn          pshy                          ; SAVE Y.
+;*******************************************************************************
+
+MoveVarsDn          proc
+                    pshy                          ; SAVE Y.
                     pshb                          ; SAVE THE BYTE COUNT.
                     ldy       VARBEGIN            ; POINT TO THE CURRENT START OF THE VARIABLE TABLE.
                     lda       #$FF                ; MAKE THE BYTE COUNT NEGATIVE SO WE CAN JUST ADD.
@@ -3793,20 +3801,23 @@ MoveVarsDn          pshy                          ; SAVE Y.
                     subd      VARBEGIN            ; SUBTRACT THE OLD TABLE STARTING ADDRESS TO GET THE SIZE OF THE TABLE.
                     stx       VARBEGIN            ; SAVE THE POINTER TO THE NEW START OF THE VARIABLE TABLE.
                     std       VarSize             ; save the size of the variable table (9/12/89).
-                    beq       MOVEDN2             ; IF THE SIZE IS 0 (NO VARIABLES ALLOCATED) EXIT.
-MOVEDN1             lda       ,y                  ; GET A BYTE.
+                    beq       Done@@              ; IF THE SIZE IS 0 (NO VARIABLES ALLOCATED) EXIT.
+Loop@@              lda       ,y                  ; GET A BYTE.
                     sta       ,x                  ; MOVE IT.
                     inx                           ; MOVE THE DESTINATION POINTER.
                     iny                           ; MOVE THE SOURCE POINTER.
                     bsr       DecCount            ; DECREMENT THE BYTE COUNT. ARE WE DONE? (9/12/89).
-                    bpl       MOVEDN1             ; NO. KEEP MOVIN' THEM BYTES.
+                    bpl       Loop@@              ; NO. KEEP MOVIN' THEM BYTES.
                     dex
-MOVEDN2             stx       VAREND              ; SAVE THE NEW POINTER TO THE END OF THE VARIABLE TABLE.
+Done@@              stx       VAREND              ; SAVE THE NEW POINTER TO THE END OF THE VARIABLE TABLE.
                     pulb                          ; RESTORE THE BYTE COUNT.
                     puly                          ; RESTORE Y.
                     rts                           ; RETURN.
 
-DecCount            ldd       VarSize             ; get the size of the variable table.
+;*******************************************************************************
+
+DecCount            proc
+                    ldd       VarSize             ; get the size of the variable table.
                     decd                          ; decrement it.
                     std       VarSize             ; save the new value.
                     rts                           ; return.
@@ -3828,7 +3839,7 @@ DecCount            ldd       VarSize             ; get the size of the variable
 ; return;
 ; *}
 
-INITVARS            equ       *
+INITVARS            proc
                     ldx       RAMStart            ; YES. VARIABLES START AT RAMBEG.
                     stx       VARBEGIN            ; SET POINTERS TO BOTH START AND END OF VARIABLE
                     stx       VAREND              ; STORAGE.
@@ -3860,18 +3871,18 @@ INITVARS            equ       *
                     addd      #GOSLEN             ; add the length of the GOSUB stack.
                     std       STGOSTK             ; save it as the start of the GOSUB stack.
                     ldx       BASBEG              ; point to the start of the basic program buffer.
-INIT1               clr       ,x                  ; CLEAR THE STORAGE TO ZERO.
+Loop@@              clr       ,x                  ; CLEAR THE STORAGE TO ZERO.
                     inx                           ; POINT TO THE NEXT LOCATION.
                     cpx       BASMEND             ; ARE WE DONE?
-                    bls       INIT1               ; NO. KEEP CLEARING.
+                    bls       Loop@@              ; NO. KEEP CLEARING.
                                                   ; YES. POINT TO THE PHYSICAL END OF MEMORY.
                     ldx       EEStart
                     lda       AUTOSTF,x           ; GET THE AUTO START FLAG AGAIN.
                     cmpa      #$55                ; IS THE AUTO START MODE SET?
-                    bne       INIT5               ; NO. DO A NORMAL INIT.
+                    bne       NormalInit@@        ; NO. DO A NORMAL INIT.
 
                     jsr       AUTOLOAD            ; GO LOAD the program and VARIABLES INTO RAM.
-INIT5               ldd       #0                  ; MAKE THE HIGHEST LINE IN THE PROGRAM 0.
+NormalInit@@        ldd       #0                  ; MAKE THE HIGHEST LINE IN THE PROGRAM 0.
                     std       HILINE
                     std       CURLINE             ; MAKE THE CURRENT LINE #0.
                     jsr       RUNINIT             ; GO INITALIZE ALL THE SOFTWARE STACKS.
@@ -3881,19 +3892,18 @@ INIT5               ldd       #0                  ; MAKE THE HIGHEST LINE IN THE
                     ldx       DFLOPADR            ; point to the D-Flip flop address.
                     sta       ,x                  ; CONNECT SCI RX PIN TO THE HOST CONNECTOR.
                     clr       DEVNUM              ; MAKE THE DEFAULT DEVICE NUMBER 0 (CONSOLE).
-                    clr       IMMID               ; clear the immediate mode flag (added 9/17/90).
+                    clr       IMMED               ; clear the immediate mode flag (added 9/17/90).
                     ldx       VAREND              ; GET THE POINTER TO THE END OF VARIABLE STORAGE.
                     inx                           ; BUMP IT BY 1.
                     stx       STRASTG             ; POINT TO THE DYNAMIC ARRAY STORAGE.
                     rts                           ; RETURN.
 
-POWERUP             equ       *
+;*******************************************************************************
+
+POWERUP             proc
                     ldd       IOBase              ; GET THE BASE ADDRESS OF THE I/O REGISTERS.
                     std       IOBaseV
-                    lsra
-                    lsra
-                    lsra
-                    lsra
+                    lsra:4
                     sta       $103D               ; remap the I/0 regs to where the user wants them.
                     ldx       IOBaseV             ; point to the I/O Register Base.
                     lda       #$93                ; TURN ON A/D, USE E CLOCK, SET IRQ LEVEL SENSITIVE
@@ -3911,13 +3921,12 @@ POWERUP             equ       *
                     ldy       #RETII              ; GET ADDRESS OF RTI INSTRUCTION.
                     ldb       #20                 ; PUT THE "JMP" OPCODE INTO ALL VECTOR LOCATIONS.
                     lda       #JMPOP              ; GET THE JMP OPCODE.
-POWERUP1            sta       ,x                  ; STORE IT.
+Loop@@              sta       ,x                  ; STORE IT.
                     inx                           ; POINT TO THE NEXT VECTOR.
                     sty       ,x                  ; INITALIZE VECTOR TO "RTI".
-                    inx
-                    inx
+                    inx:2
                     decb                          ; DONE?
-                    bne       POWERUP1            ; NO. INITALIZE ALL VECTORS.
+                    bne       Loop@@              ; NO. INITALIZE ALL VECTORS.
                     ldx       #ILLOP              ; POINT TO THE ILLEGAL OP-CODE VECTOR.
                     ldd       #POWERUP            ; GET THE ADDRESS OF THE POWER UP VECTOR.
                     std       1,x                 ; INITALIZE ILLEGAL OP-CODE VECTOR.
@@ -3927,19 +3936,18 @@ POWERUP1            sta       ,x                  ; STORE IT.
                     ldx       #INTABLE            ; POINT TO THE START OF THE I/O VECTOR TABLE.
                     ldy       #IOVects            ; point to the default table in ROM.
                     ldb       #32                 ; GET NUMBER OF BYTES IN THE TABLE.
-POWERUP2            lda       ,y                  ; Move a byte of the table from ROM into RAM.
+ToRam@@             lda       ,y                  ; Move a byte of the table from ROM into RAM.
                     sta       ,x
                     inx                           ; POINT TO THE NEXT BYTE.
                     iny
                     decb                          ; DECREMENT THE COUNT.
-                    bne       POWERUP2            ; GO TILL WE'RE DONE.
+                    bne       ToRam@@             ; GO TILL WE'RE DONE.
 
                     ldx       #TIMEINT            ; GET THE ADDRESS OF THE OUTPUT COMPARE 1 ROUTINE.
                     stx       TOC1+1              ; PUT IT IN THE INTERRUPT VECTOR.
                     lda       #SWPRE+1            ; ADD 1 TO NORMAL PRE SCALER.
                     sta       TIMEPRE             ; SET UP THE SOFTWARE PRESCALER.
-                    clra
-                    clrb
+                    clrd
                     std       TIMEREG             ; ZERO THE TIME REGISTER.
                     std       TIMECMP             ; zero the time compare register.
                     ldx       IOBaseV
@@ -3961,54 +3969,69 @@ POWERUP2            lda       ,y                  ; Move a byte of the table fro
                     jsr       ,x                  ; INITALIZE THE ACIA & SCI.
                     jmp       MAIN                ; GO TO BASIC.
 
-TIMEINT             bsr       TIMINTS
+;*******************************************************************************
+
+TIMEINT             proc
+                    bsr       TIMINTS
 RETII               rti                           ; RETURN FROM ALL INTERRUPT SOURCES.
 
-TIMINTS             ldx       IOBaseV             ; Point to the I/O Base Address.
+;*******************************************************************************
+
+TIMINTS             proc
+                    ldx       IOBaseV             ; Point to the I/O Base Address.
                     ldd       TOC1REG,x           ; GET THE VALUE OF THE TIMER/COUNTER.
-TIMINTS3            addd      TimeVal             ; ADD IN 62500 FOR NEXT COMPARE ( 2 HZ INT.).
+;                   bra       TIMINTS3
+
+;*******************************************************************************
+
+TIMINTS3            proc
+                    addd      TimeVal             ; ADD IN 62500 FOR NEXT COMPARE ( 2 HZ INT.).
                     std       TOC1REG,x           ; PUT IT IN THE OUTPUT COMPARE REGISTER.
                     lda       #$80                ; SETUP TO CLEAR THE OC1 FLAG.
                     sta       TFLAG1,x
                     dec       TIMEPRE             ; HAVE TWO OUTPUT COMPARES OCCURED?
-                    bne       TIMINTS1            ; NO. JUST RETURN.
+                    bne       Done@@              ; NO. JUST RETURN.
                     lda       #SWPRE              ; YES. RELOAD THE REGISTER.
                     sta       TIMEPRE
                     ldd       TIMEREG             ; GET THE CURRENT VALUE OF "TIME".
                     incd                          ; ADD 1 SECOND TO THE COUNT.
                     std       TIMEREG             ; UPDATE THE TIME REGISTER.
                     ldd       TIMECMP             ; GET THE VALUE TO COMPARE TO FOR "ONTIME".
-                    beq       TIMINTS1            ; IF IT'S 0, THE "ONTIME" FUNCTION IS OFF.
+                    beq       Done@@              ; IF IT'S 0, THE "ONTIME" FUNCTION IS OFF.
                     cpd       TIMEREG             ; DOES THE COMPARE VALUE MATCH THE TIME REGISTER?
-                    bne       TIMINTS1            ; NO. JUST RETURN.
+                    bne       Done@@              ; NO. JUST RETURN.
                     ldy       ONTIMLIN            ; MAKE THE POINTER TO THE LINE NUMBER THE NEW IP.
-                    ins                           ; GET RID OF THE RETURN ADDRESS.
-                    ins
-TIMINTS2            inc       IMMID               ; FAKE THE GOTO ROUTINE OUT.
+                    ins:2                         ; GET RID OF THE RETURN ADDRESS.
+TIMINTS2            inc       IMMED               ; FAKE THE GOTO ROUTINE OUT.
                     ldd       CURLINE             ; SAVE THE CURRENT LINE NUMBER IN MAIN PROGRAM.
                     std       SCURLINE
                     ldd       ADRNXLIN            ; SAVE THE ADDRESS OF THE NEXT LINE IN MAIN PROG.
                     std       SADRNXLN
                     jmp       RGOTO3              ; GOTO THE SERVICE ROUTINE.
+Done@@              rts                           ; RETURN.
 
-TIMINTS1            rts                           ; RETURN.
+;*******************************************************************************
 
-IRQINT              equ       *
+IRQINT              proc
                     ldy       ONIRQLIN            ; GET POINTER TO LINE NUMBER OF THE IRQ SERVICE.
                     bne       TIMINTS2            ; GO DO IT.
                     rti                           ; IF IT'S 0, "ONIRQ" HAS NOT BEEN EXECUTED.
 
-PACCINT             equ       *
+;*******************************************************************************
+
+PACCINT             proc
                     ldx       IOBaseV
                     lda       #$30                ; RESET BOTH THE TIMER OVERFLOW & INPUT FLAG.
                     sta       TFLG2,x
                     ldy       ONPACLIN            ; GET POINTER TO LINE NUMBER OF THE SERVICE ROUT.
                     bne       TIMINTS2
                     rti
+
 ;                   include   'command1.mod'
                     title     COMMAND1
                     page
 
+;*******************************************************************************
 ;***** chckcmds() *****/
 ;
 ; *chckcmds()
@@ -4022,67 +4045,65 @@ PACCINT             equ       *
 ; return(1);
 ; *}
 
-CHCKCMDS            equ       *
+CHCKCMDS            proc
                     jsr       GETCHR              ; GET FIRST CHAR FROM THE INPUT BUFFER.
                     cmpa      #EOL                ; IS IT AN EOL?
-                    bne       CHKCMDS1            ; NO. GO CHECK FOR COMMANDS.
-CHKCMDS5            ldd       #0                  ; YES. JUST RETURN.
+                    bne       Go@@                ; NO. GO CHECK FOR COMMANDS.
+NotFound@@          ldd       #0                  ; YES. JUST RETURN.
                     rts
 
-CHKCMDS1            ldx       #CMDTBL             ; POINT TO COMMAND TABLE.
-CHKCMDS2            jsr       STREQ               ; GO CHECK FOR A COMMAND.
-                    bcs       CHKCMDS3            ; IF WE FOUND ONE GO EXECUTE IT.
-CHKCMDS4            inx                           ; ADVANCE POINTER TO NEXT CHAR IN TABLE ENTRY.
+Go@@                ldx       #Table@@            ; POINT TO COMMAND TABLE.
+Loop@@              jsr       STREQ               ; GO CHECK FOR A COMMAND.
+                    bcs       Found@@             ; IF WE FOUND ONE GO EXECUTE IT.
+ToEnd@@             inx                           ; ADVANCE POINTER TO NEXT CHAR IN TABLE ENTRY.
                     lda       ,x                  ; GET THE CHAR. ARE WE AT THE END OF THIS ENTRY?
-                    bne       CHKCMDS4            ; NO. KEEP GOING TILL WE ARE PAST IT.
-                    inx                           ; BYPASS END OF COMMAND MARKER & EXECUTION ADDR.
-                    inx
-                    inx
+                    bne       ToEnd@@             ; NO. KEEP GOING TILL WE ARE PAST IT.
+                    inx:3                         ; BYPASS END OF COMMAND MARKER & EXECUTION ADDR.
                     tst       ,x                  ; ARE WE AT THE END OF THE TABLE?
-                    bne       CHKCMDS2            ; NO. GO CHECK THE NEXT TABLE ENTRY.
-                    bra       CHKCMDS5            ; YES. RETURN W/ ENTRY NOT FOUND INDICATION.
+                    bne       Loop@@              ; NO. GO CHECK THE NEXT TABLE ENTRY.
+                    bra       NotFound@@          ; YES. RETURN W/ ENTRY NOT FOUND INDICATION.
 
-CHKCMDS3            ldx       1,x                 ; GET ADDRESS OF COMMAND.
+Found@@             ldx       1,x                 ; GET ADDRESS OF COMMAND.
                     jsr       ,x                  ; GO DO IT.
                     ldd       #1                  ; SHOW WE EXECUTED A COMMAND.
                     rts                           ; RETURN.
 
-CMDTBL              equ       *
-                    fcs       "LIST"
+Table@@             fcs       'LIST'
                     fdb       CLIST
 
-                    fcs       "RUN"
+                    fcs       'RUN'
                     fdb       CRUN
 
-                    fcs       "NEW"
+                    fcs       'NEW'
                     fdb       CNEW
 
-                    fcs       "CONT"
+                    fcs       'CONT'
                     fdb       CCONT
 
-                    fcs       "CLEAR"
+                    fcs       'CLEAR'
                     fdb       CCLEAR
 
-                    fcs       "ESAVE"
+                    fcs       'ESAVE'
                     fdb       CESAVE
 
-                    fcs       "ELOAD"
+                    fcs       'ELOAD'
                     fdb       CELOAD
 
-                    fcs       "LLIST"
+                    fcs       'LLIST'
                     fdb       CLLIST
 
-                    fcs       "AUTOST"
+                    fcs       'AUTOST'
                     fdb       CAUTOST
 
-                    fcs       "NOAUTO"
+                    fcs       'NOAUTO'
                     fdb       CNOAUTO
 
-                    fcs       "FREE"
+                    fcs       'FREE'
                     fdb       CFREE
 
                     fcb       0                   ; END OF TABLE MARKER.
 
+;*******************************************************************************
 ;***** clist() *****/
 ;
 ; *clist()
@@ -4092,14 +4113,14 @@ CMDTBL              equ       *
 ; if(basbeg==basend) return;             if basic buffer empty, return
 ; skipspcs();                    skip any spaces after "LIST"
 
-CLIST               equ       *
+CLIST               proc
                     jsr       NL2
                     ldd       BASBEG
                     cpd       BASEND
-                    bne       CLIST1
+                    bne       Go@@
                     rts
 
-CLIST1              jsr       SKIPSPCS
+Go@@                jsr       SKIPSPCS
 
 ; if(numeric(getchr()))
 ; {
@@ -4190,16 +4211,14 @@ CLIST12             stx       LASTLIN
 ; return;
 ; *}
 
-CLIST6              ldd       TOKPTR
+Loop@@              ldd       TOKPTR
                     cpd       LASTLIN
                     bne       CLIST7
                     rts
 
 CLIST7              ldx       TOKPTR
                     ldd       ,x
-                    inx
-                    inx
-                    inx
+                    inx:3
                     stx       TOKPTR
                     jsr       OUTDECI
 CLIST8              ldx       TOKPTR
@@ -4218,8 +4237,9 @@ CLIST9              jsr       NL
                     ldx       TOKPTR
                     inx
                     stx       TOKPTR
-                    bra       CLIST6
+                    bra       Loop@@
 
+;*******************************************************************************
 ;***** lvarcon() *****/
 ;
 ; *lvarcon()
@@ -4244,27 +4264,24 @@ CLIST9              jsr       NL
 ; else { errcode=ILTOKERR; return; }
 ; *}
 
-LVARCON             equ       *
+LVARCON             proc
                     ldx       TOKPTR
                     lda       ,x
                     anda      #$EF                ; MASK OFF ARRAY INDICATOR IF PRESENT.
-                    ldx       #VCTOKTBL
-LVARCON1            cmpa      ,x
-                    beq       LVARCON2
-                    inx
-                    inx
-                    inx
+                    ldx       #Table@@
+Loop@@              cmpa      ,x
+                    beq       Found@@
+                    inx:3
                     tst       ,x
-                    bne       LVARCON1
+                    bne       Loop@@
                     lda       #ILTOKERR
                     jmp       RPTERR
 
-LVARCON2            ldx       1,x
+Found@@             ldx       1,x
                     jsr       ,x
                     rts
 
-VCTOKTBL            equ       *
-                    fcb       IVARTOK
+Table@@             fcb       IVARTOK
                     fdb       LIVAR
                     fcb       SCONTOK
                     fdb       LSCON
@@ -4274,6 +4291,7 @@ VCTOKTBL            equ       *
                     fdb       LICON
                     fcb       0                   ; END OF TABLE MARKER.
 
+;*******************************************************************************
 ;***** livar() *****/
 ;
 ; *livar()
@@ -4283,36 +4301,38 @@ VCTOKTBL            equ       *
 ; return;
 ; *}
 
-LIVAR               equ       *
+LIVAR               proc
                     ldx       TOKPTR
                     inx
                     ldd       ,x
                     addd      VARBEGIN
-                    inx
-                    inx
+                    inx:2
                     stx       TOKPTR
                     xgdx
-LIVAR2              lda       1,x
+                    lda       1,x
                     jsr       OUTBYTE
                     lda       2,x
-                    beq       LIVAR1
+                    beq       Done@@
                     jsr       OUTBYTE
-LIVAR1              rts
+Done@@              rts
 
-LFCON               equ       *
+;*******************************************************************************
+
+LFCON               proc
                     ldd       TOKPTR
                     addd      #FSIZ+1
 LFCON2              xgdx
                     ldb       ,x
                     inx
-LFCON1              lda       ,x
+Loop@@              lda       ,x
                     jsr       OUTBYTE
                     inx
                     decb
-                    bne       LFCON1
+                    bne       Loop@@
                     stx       TOKPTR
                     rts
 
+;*******************************************************************************
 ;***** licon() *****/
 ;
 ; *licon()
@@ -4327,11 +4347,12 @@ LFCON1              lda       ,x
 ; return;
 ; *}
 
-LICON               equ       *
+LICON               proc
                     ldd       TOKPTR
                     addd      #ISIZ+1
                     bra       LFCON2
 
+;*******************************************************************************
 ;***** lscon() *****/
 ;
 ; *lscon()
@@ -4346,11 +4367,12 @@ LICON               equ       *
 ; return;
 ; *}
 
-LSCON               equ       *
+LSCON               proc
                     ldd       TOKPTR
                     incd
                     bra       LFCON2
 
+;*******************************************************************************
 ;***** llcon *****/
 ;
 ; *llcon()
@@ -4362,16 +4384,16 @@ LSCON               equ       *
 ; return;
 ; *}
 
-LLCON               equ       *
+LLCON               proc
                     ldx       TOKPTR
                     inx
                     ldd       ,x
-                    inx
-                    inx
+                    inx:2
                     stx       TOKPTR
                     jsr       OUTDECI
                     rts
 
+;*******************************************************************************
 ;***** lkeyword *****/
 ;
 ; *lkeyword()
@@ -4379,7 +4401,7 @@ LLCON               equ       *
 ; char *charptr,token;
 ; token=*tokptr++
 
-LKEYWORD            equ       *
+LKEYWORD            proc
                     ldx       TOKPTR
                     lda       ,x
                     inx
@@ -4408,9 +4430,7 @@ LKEYWRD5            cmpa      #FUNCTFLG
 LKEYWRD6            ldx       #TOKTBL
 LKEYWRD1            cmpa      ,x
                     beq       LKEYWRD2
-                    inx
-                    inx
-                    inx
+                    inx:3
                     tst       ,x
                     bne       LKEYWRD1
                     lda       #ILTOKERR
@@ -4419,40 +4439,45 @@ LKEYWRD1            cmpa      ,x
 LKEYWRD2            ldx       1,x
                     jmp       PL
 
-LMSPCS              equ       *
+;*******************************************************************************
+
+LMSPCS              proc
                     ldx       TOKPTR
                     ldb       ,x
                     inx
                     stx       TOKPTR
                     lda       #$20
-LMSPCS1             jsr       OUTBYTE
+Loop@@              jsr       OUTBYTE
                     decb
-                    bne       LMSPCS1
+                    bne       Loop@@
                     rts
 
-LDATALIN            equ       *
+;*******************************************************************************
+
+LDATALIN            proc
                     ldx       #DATA
                     jsr       PL
                     bra       LREM3
 
-LREMLINE            equ       *
+;*******************************************************************************
+
+LREMLINE            proc
                     ldx       #REM
                     jsr       PL
 LREM3               ldx       TOKPTR
                     inx                           ; PUT POINTER PAST LENGTH BYTE.
-LREM1               lda       ,x
+Loop@@              lda       ,x
                     cmpa      #EOL
-                    bne       LREM2
+                    bne       Cont@@
                     inx
                     stx       TOKPTR
                     rts
 
-LREM2               jsr       OUTBYTE
+Cont@@              jsr       OUTBYTE
                     inx
-                    bra       LREM1
+                    bra       Loop@@
 
-TOKTBL              equ       *
-                    fcb       LETTOK
+TOKTBL              fcb       LETTOK
                     fdb       LET
                     fcb       READTOK
                     fdb       READ
@@ -4580,8 +4605,7 @@ TOKTBL              equ       *
                     fdb       SLEEP
                     fcb       0                   ; END OF TABLE MARKER.
 
-LFUNCTBL            equ       *
-                    fcb       FDIVTOK
+LFUNCTBL            fcb       FDIVTOK
                     fdb       FDIVS
                     fcb       CHRTOK
                     fdb       CHRS
@@ -4620,16 +4644,18 @@ LFUNCTBL            equ       *
                     fcb       FPACCTOK
                     fdb       PACC
 IMLET               fcb       0                   ; NO KETWORD TO PRINT FOR AN IMPLIED LET.
-COLLINC             fcs       ":"
-SEMIC               fcs       ";"
-COMMAC              fcs       ","
-OPARN               fcs       "("
-CPARN               fcs       ")"
-SPACE               fcs       " "
-PORTE               fcs       "PORTE"
-POUNDSGN            fcs       "#"
+COLLINC             fcs       ':'
+SEMIC               fcs       ';'
+COMMAC              fcs       ','
+OPARN               fcs       '('
+CPARN               fcs       ')'
+SPACE               fcs       ' '
+PORTE               fcs       'PORTE'
+POUNDSGN            fcs       '#'
 
-CRUN                equ       *
+;*******************************************************************************
+
+CRUN                proc
                     jsr       NL2                 ; DO 2 CR/LF SEQUENCES.
                     jsr       RUNINIT             ; INITALIZE RUNTIME VARIABLES.
                     lda       #1                  ; SET THE RUN MODE FLAG.
@@ -4639,10 +4665,10 @@ CRUN                equ       *
 
                     ldy       BASBEG              ; POINT TO THE START OF THE PROGRAM.
                     cpy       BASEND              ; IS THERE A PROGRAM IN MEMORY?
-                    bne       CRUN5               ; YES. GO RUN IT.
+                    bne       Go@@                ; YES. GO RUN IT.
                     rts                           ; NO. RETURN.
 
-CRUN5               ldd       ,y                  ; GET NUMBER OF FIRST/NEXT LINE OF BASIC PROGRAM.
+Go@@                ldd       ,y                  ; GET NUMBER OF FIRST/NEXT LINE OF BASIC PROGRAM.
                     std       CURLINE             ; MAKE IT THE CURRENT LINE.
                     tst       TRFLAG              ; IS THE TRACE MODE TURNED ON?
                     beq       CRUN6               ; NO. CONTINUE.
@@ -4654,13 +4680,13 @@ CRUN5               ldd       ,y                  ; GET NUMBER OF FIRST/NEXT LIN
                     jsr       OUTBYTE
                     jsr       NL
 CRUN6               pshy                          ; SAVE POINTER TO START OF NEW LINE.
-                    ldb       2,Y                 ; GET LENGTH OF LINE.
+                    ldb       2,y                 ; GET LENGTH OF LINE.
                     aby                           ; POINT TO START OF NEXT LINE.
                     sty       ADRNXLIN            ; SAVE THE ADDRESS OF THE NEXT LINE.
                     puly
                     ldb       #3                  ; BYTE COUNT OF LINE NUMBER & LENGTH.
                     aby                           ; POINT TO THE FIRST TOKEN.
-CRUN4               bsr       RSKIPSPC            ; SKIP SPACES IF PRESENT.
+Loop@@              bsr       RSKIPSPC            ; SKIP SPACES IF PRESENT.
                     ldb       ,y                  ; GET KEYWORD TOKEN.
                     iny                           ; POINT PAST THE KEYWORD.
                     bsr       RSKIPSPC            ; SKIP SPACES AFTER KEYWORD.
@@ -4671,33 +4697,37 @@ CRUN4               bsr       RSKIPSPC            ; SKIP SPACES IF PRESENT.
                     ldx       ,x                  ; POINT TO RUNTIME ROUTINE.
                     jsr       ,x                  ; GO DO IT.
 
-CRUN2               dec       BREAKCNT            ; SHOULD WE CHECK FOR A BREAK YET?
+                    dec       BREAKCNT            ; SHOULD WE CHECK FOR A BREAK YET?
                     bne       CRUN7               ; NO. CONTINUE.
                     jsr       CHCKBRK             ; CHECK FOR BREAK FROM CONSOLE.
-;
+
 CRUN7               bsr       RSKIPSPC            ; SKIP ANY SPACES.
                     lda       ,y                  ; GET THE NEXT TOKEN IN THE LINE.
                     cmpa      #EOLTOK             ; ARE WE AT THE END OF THE LINE?
-                    bne       CRUN3
+                    bne       Cont@@
                     iny                           ; YES. POINT TO START OF THE NEXT LINE.
 CRUN1               cpy       BASEND              ; HAVE WE REACHED THE END OF THE BASIC PROGRAM?
-                    bne       CRUN5               ; NO. GO EXECUTE THE NEXT LINE.
+                    bne       Go@@                ; NO. GO EXECUTE THE NEXT LINE.
                     jmp       REND                ; GO DO AN "END".
 
-CRUN3               iny                           ; MUST BE A MID EOL.
-                    bra       CRUN4               ; GO DO NEXT KEYWORD.
+Cont@@              iny                           ; MUST BE A MID EOL.
+                    bra       Loop@@              ; GO DO NEXT KEYWORD.
 
-RSKIPSPC            lda       ,y                  ; GET A CHARACTER.
-                    bmi       RSKIP2
+;*******************************************************************************
+
+RSKIPSPC            proc
+                    lda       ,y                  ; GET A CHARACTER.
+                    bmi       Done@@
                     cmpa      #SSCNTOK            ; IS IT A SINGLE SPACE?
-                    beq       RSKIP1              ; YES. BUMP IP BY 1.
-                    blo       RSKIP2
+                    beq       Skip@@              ; YES. BUMP IP BY 1.
+                    blo       Done@@
                     iny                           ; BUMP IP BY 2 FOR MULTIPLE SPACES.
-RSKIP1              iny                           ; BUMP IP.
-RSKIP2              rts                           ; RETURN.
+Skip@@              iny                           ; BUMP IP.
+Done@@              rts                           ; RETURN.
 
-RKEYWORD            equ       *
-                    fdb       RLET
+;*******************************************************************************
+
+RKEYWORD            fdb       RLET
                     fdb       RLET
                     fdb       RPRINT
                     fdb       RFOR
@@ -4740,13 +4770,16 @@ RKEYWORD            equ       *
                     fdb       RSLEEP
                     fdb       RRTIME
 
-RUNLINE             jsr       NL2
+;*******************************************************************************
+
+RUNLINE             proc
+                    jsr       NL2
                     ldy       TKNBUFS             ; POINT TO THE TOKEN BUFFER.
                     ldd       ,y                  ; GET CURRENT LINE NUMBER.
                     std       CURLINE             ; MAKE "0" THE CURRENT LINE #.
                     ldb       #3                  ; POINT PAST THE LINE NUMBER & LENGTH.
                     aby
-RUNLINE2            bsr       RSKIPSPC            ; SKIP SPACES.
+Loop@@              bsr       RSKIPSPC            ; SKIP SPACES.
                     ldb       ,y                  ; GET KEYWORD.
                     iny                           ; POINT PAST KEYWORD.
                     bsr       RSKIPSPC            ; SKIP SPACES.
@@ -4759,13 +4792,15 @@ RUNLINE2            bsr       RSKIPSPC            ; SKIP SPACES.
                     jsr       RSKIPSPC            ; SKIP SPACES.
                     lda       ,y
                     cmpa      #EOLTOK             ; ARE WE AT THE END OF THE LINE?
-                    bne       RUNLINE1
+                    bne       Cont@@
                     rts
 
-RUNLINE1            iny                           ; MUST BE A MID EOL.
-                    bra       RUNLINE2
+Cont@@              iny                           ; MUST BE A MID EOL.
+                    bra       Loop@@
 
-CHCKBRK             equ       *
+;*******************************************************************************
+
+CHCKBRK             proc
                     lda       #10                 ; RELOAD THE BREAK CHECK COUNT.
                     sta       BREAKCNT
                     jsr       CONSTAT             ; GET CONSOLE STATUS. CHARACTER TYPED?
@@ -4786,7 +4821,9 @@ CHCKBRK2            sty       IPSAVE              ; SAVE THE IP POINTER IN CASE 
                     jsr       NL
                     jmp       MAINW
 
-RUNINIT             equ       *
+;*******************************************************************************
+
+RUNINIT             proc
                     jsr       CCLEAR              ; GO CLEAR ALL VARIABLE STORAGE.
 RUNINIT1            ldx       STNUMS              ; GET START OF NUMERIC OPERAND STACK.
                     stx       NUMSTACK            ; INITALIZE THE OPERAND STACK POINTER.
@@ -4805,52 +4842,59 @@ RUNINIT1            ldx       STNUMS              ; GET START OF NUMERIC OPERAND
                     lda       #10                 ; SET COUNT FOR BREAK CHECK.
                     sta       BREAKCNT
                     clr       CONTFLAG            ; CLEAR THE CONTINUE FLAG.
-                    ldx       #0                  ; CLEAR THE DATA POINTER.
+                    clrx                          ; CLEAR THE DATA POINTER.
                     stx       DATAPTR
                     rts
 
-CCONT               equ       *
+;*******************************************************************************
+
+CCONT               proc
                     jsr       NL2
                     tst       CONTFLAG
-                    bne       CCONT1
+                    bne       Fail@@
                     ldy       IPSAVE
                     jmp       CRUN7
 
-CCONT1              lda       #CNTCNERR
+Fail@@              lda       #CNTCNERR
                     sta       ERRCODE
                     jmp       RPTERR5
 
-CNEW                equ       *
+;*******************************************************************************
+
+CNEW                proc
                     ldx       EEStart
                     lda       AUTOSTF,x           ; GET THE AUTO START FLAG.
                     cmpa      #$55                ; IS IT SET?
-                    bne       CNEW1               ; NO. GO INITIALIZE EVERYTHING.
+                    bne       Init@@              ; NO. GO INITIALIZE EVERYTHING.
                     lda       #$FF                ; YES. RESET (ERASE) IT.
                     sta       AUTOSTF,x
                     jsr       DLY10MS
-CNEW1               jsr       INITVARS            ; INITIALIZE EVERYTHING.
+Init@@              jsr       INITVARS            ; INITIALIZE EVERYTHING.
                     rts                           ; RETURN.
 
-CCLEAR              equ       *
+;*******************************************************************************
+
+CCLEAR              proc
                     jsr       RUNINIT1            ; GO INITALIZE ALL STACKS ETC.
 CCLEAR3             ldx       VARBEGIN
-CCLEAR1             lda       ,x
-                    beq       CCLEAR2
-                    inx
-                    inx
-                    inx
+Loop@@              lda       ,x
+                    beq       Done@@
+                    inx:3
                     jsr       CLRVAR
-                    bra       CCLEAR1
+                    bra       Loop@@
 
-CCLEAR2             ldx       VAREND
+Done@@              ldx       VAREND
                     inx
                     stx       STRASTG
                     rts
+
 ;                   include   'command2.mod'
                     name      COMMAND2
                     page
 
-CESAVE              equ       *
+;*******************************************************************************
+
+CESAVE              proc
                     ldd       BASBEG              ; GET POINTER TO THE START OF THE BASIC PROGRAM.
                     cpd       BASEND              ; IS THERE A PROGRAM IN MEMORY?
                     bne       CESAVE1             ; YES. GO SAVE IT.
@@ -4876,8 +4920,7 @@ CESAVE3             ldd       ,y
                     sta       ,x
                     jsr       DLY10MS
                     inx
-                    iny
-                    iny
+                    iny:2
                     dec       COUNT
                     bne       CESAVE3
 
@@ -4900,20 +4943,20 @@ CESAVE4             lda       ,y
                     bls       CESAVE4
                     rts                           ; RETURN.
 
-CELOAD              equ       *
+;*******************************************************************************
+
+CELOAD              proc
                     ldx       EEStart             ; point to the start of the program storage EEPROM.
                     ldy       #BASBEG             ; point to the start of the program pointer storage area.
                     ldb       #4                  ; number of words to move.
                     stb       COUNT               ; save the count.
-CELOAD3             ldd       ,x                  ; get the offset that was saved.
+Loop@@              ldd       ,x                  ; get the offset that was saved.
                     addd      RAMStart            ; add the starting address of the RAM to it.
                     std       ,y                  ; save the resulting pointer
-                    inx                           ; point to the next offset.
-                    inx
-                    iny                           ; point to the next pointer in RAM
-                    iny
+                    inx:2                         ; point to the next offset.
+                    iny:2                         ; point to the next pointer in RAM
                     dec       COUNT               ; have we gotten all the pointers yet?
-                    bne       CELOAD3             ; no. keep going.
+                    bne       Loop@@              ; no. keep going.
 
                     ldd       ,x                  ; yes. get the high line number.
                     std       ,y                  ; save it in RAM.
@@ -4931,25 +4974,33 @@ CELOAD4             lda       SSTART,x            ; get a byte of the program.
                     sty       STRASTG             ; yes. initialize the array storage area.
                     rts                           ; RETURN.
 
-CLLIST              equ       *
+;*******************************************************************************
+
+CLLIST              proc
                     lda       #$01                ; USE DEVICE #1 FOR HARD COPY LISTING.
                     sta       DEVNUM
                     jsr       CLIST               ; GO DO A STANDARD LIST COMMAND.
                     clr       DEVNUM
                     rts                           ; RETURN.
 
-CAUTOST             equ       *                   ; SET AUTO START MODE FOR BASIC PROGRAM.
+;*******************************************************************************
+
+CAUTOST             proc                          ; SET AUTO START MODE FOR BASIC PROGRAM.
                     lda       #$55                ; GET FLAG.
-CAUTOST1            ldx       EEStart
+?SaveAutoFlag       ldx       EEStart
                     sta       AUTOSTF,x           ; PROGRAM IT INTO THE EEPROM
                     jsr       DLY10MS             ; WAIT WHILE IT PROGRAMS.
                     rts                           ; RETURN.
 
-CNOAUTO             equ       *
-                    lda       #$FF
-                    bra       CAUTOST1
+;*******************************************************************************
 
-AUTOLOAD            equ       *
+CNOAUTO             proc
+                    lda       #$FF
+                    bra       ?SaveAutoFlag
+
+;*******************************************************************************
+
+AUTOLOAD            proc
                     ldx       EEStart
                     ldd       EEStart
                     addd      #SSTART
@@ -4971,7 +5022,9 @@ AUTOLOAD            equ       *
                     xgdx
                     bra       CELOAD4
 
-CFREE               equ       *
+;*******************************************************************************
+
+CFREE               proc
                     jsr       NL2
                     ldd       VARMEND
                     subd      STRASTG
@@ -4979,18 +5032,20 @@ CFREE               equ       *
                     jsr       NL
                     rts
 
-CDUMP               equ       *
+;*******************************************************************************
+
+CDUMP               proc
                     rts
 
 #ifdef ;------------------------------------------------------------------------
                     jsr       NL2                 ; PRINT TWO BLANK LINES.
                     clr       DNAME+2             ; ZERO THE LAST BYTE OF THE VARIABLE NAME 'ARRAY'
                     ldx       VARBEGIN            ; POINT TO THE START OF THE VARIABLE TABLE.
-CDUMP2              lda       ,x                  ; GET AN ENTRY. IS IT THE END OF THE TABLE?
-                    bne       CDUMP3              ; YES. WE'RE DONE.
+Loop@@              lda       ,x                  ; GET AN ENTRY. IS IT THE END OF THE TABLE?
+                    bne       Go@@                ; YES. WE'RE DONE.
                     rts
 
-CDUMP3              lda       1,x                 ; NO. GET THE FIRST CHARACTER OF THE NAME.
+Go@@                lda       1,x                 ; NO. GET THE FIRST CHARACTER OF THE NAME.
                     sta       DNAME
                     lda       2,x
                     sta       DNAME+1
@@ -5007,7 +5062,7 @@ CDUMP3              lda       1,x                 ; NO. GET THE FIRST CHARACTER 
                     jsr       PL
 CDUMP6              ldb       #5
                     abx
-                    bra       CDUMP2
+                    bra       Loop@@
 
 CDUMP5              pshx                          ; SAVE THE POINTER TO THE VARIABLE TABLE.
                     xgdx                          ; POINT TO THE ARRAY STORAGE AREA.
@@ -5021,8 +5076,7 @@ CDUMP77             lda       #'('
                     jsr       OUTDECI
                     ldx       #CPEQ
                     jsr       PL
-                    inx
-                    inx
+                    inx:2
                     ldd       ,x
                     jsr       OUTDECI
                     jsr       NL
@@ -5053,13 +5107,17 @@ CPEQ                fcs       ')='
                     title     RUNTIME1
                     page
 
-RREM                equ       *                   ; NON-EXECUTIBLE STATEMENT JUST SKIP IT.
-RDATA               equ       *
+;*******************************************************************************
+
+RREM                proc                          ; NON-EXECUTABLE STATEMENT JUST SKIP IT.
+RDATA               proc
                     ldb       ,y                  ; GET LENGTH OF REMARK OR DATA LINE.
                     aby                           ; POINT TO THE EOLTOK.
                     rts                           ; RETURN.
 
-RLET                equ       *
+;*******************************************************************************
+
+RLET                proc
                     lda       ,y                  ; GET VARIABLE FLAG.
                     bsr       RVARPTR             ; GET POINTER TO ASIGNMENT VARIABLE.
                     pshd                          ; SAVE POINTER TO VARIABLE.
@@ -5075,7 +5133,7 @@ RVARPTR             lda       ,y                  ; GET VARIABLE FLAG.
                     bne       RVARPTR2            ; YES. GO GET POINTER FOR A STRING DESCRIPTOR.
                     bita      #$10                ; IS IT A NUMERIC ARRAY VARIABLE?
                     bne       RVARPTR1            ; YES. GO CALCULATE THE SUBSCRIPT.
-RVARPTR3            ldd       1,Y                 ; GET THE OFFSET TO THE DICTIONARY ENTRY.
+RVARPTR3            ldd       1,y                 ; GET THE OFFSET TO THE DICTIONARY ENTRY.
                     addd      VARBEGIN            ; ADD IN THE START ADDRESS OF THE DCTIONARY.
                     addd      #3                  ; MAKE POINTER POINT TO THE ACTUAL STORAGE LOCATION
                     pshb                          ; SAVE B.
@@ -5102,13 +5160,14 @@ RVARPTR2            equ       *
                     tsx                           ; POINT TO THE VALUES.
                     lsld                          ; MULT BY 2.
                     addd      ,x                  ; MULT BY 3.
-                    ins                           ; GET RID OF SUBSCRIPT VALUE.
-                    ins
+                    ins:2                         ; GET RID OF SUBSCRIPT VALUE.
                     tsx                           ; POINT TO BASE ADDRESS.
                     bra       RVARPTR4
 
-RGOTO               equ       *
-                    tst       IMMID               ; DID WE ENTER HERE FROM THE IMMIDIATE MODE?
+;*******************************************************************************
+
+RGOTO               proc
+                    tst       IMMED               ; DID WE ENTER HERE FROM THE IMMEDIATE MODE?
                     beq       RGOTO7              ; NO. JUST GO DO A GOTO.
                     ldd       BASEND              ; YES. SET ADRNXLIN TO END OF PROGRAM SO THE
                     std       ADRNXLIN            ; SEARCH STARTS AT THE FIRST LINE.
@@ -5119,10 +5178,10 @@ RGOTO3              ldx       BASBEG              ; YES. POINT TO THE START OF T
                     bra       RGOTO2
 
 RGOTO1              ldd       ,x                  ; GET THE NEXT LINE NUMBER IN THE PGM.
-                    cpd       1,Y                 ; IS IT > THE LINE NUMBER WE ARE TO "GOTO"?
+                    cpd       1,y                 ; IS IT > THE LINE NUMBER WE ARE TO "GOTO"?
                     bhi       RGOTO3              ; YES. START THE SEARCH AT THE BEGINING.
 RGOTO2              ldd       ,x                  ; GET THE NEXT LINE NUMBER INTO D.
-                    cpd       1,Y                 ; IS THIS THE CORRECT LINE?
+                    cpd       1,y                 ; IS THIS THE CORRECT LINE?
                     beq       RGOTO4              ; YES. "GOTO" THE NEW LINE.
                     blo       RGOTO5              ; NO. IS IT LESS THAN THE "TARGET LINE"?
 RGOTO6              lda       #LNFERR             ; NO. THE LINE MUST NOT EXIST.
@@ -5136,18 +5195,19 @@ RGOTO5              ldb       2,x                 ; GET THE LENGTH OF THIS LINE.
 
 RGOTO4              xgdx                          ; MAKE IT THE NEW IP.
                     xgdy
-                    tst       IMMID
+                    tst       IMMED
                     beq       RGOTO8
-                    clr       IMMID
+                    clr       IMMED
 RGOTO9              jmp       CRUN1
 
-RGOTO8              ins
-                    ins
+RGOTO8              ins:2
                     bra       RGOTO9
 
-RGOSUB              equ       *
+;*******************************************************************************
+
+RGOSUB              proc
                     pshy                          ; SAVE THE I.P. TO THE LINE NUMBER.
-                    tst       IMMID               ; DID WE GET HERE FROM THE IMMIDIATE MODE?
+                    tst       IMMED               ; DID WE GET HERE FROM THE IMMEDIATE MODE?
                     beq       RGOSUB3             ; NO. GO DO A NORMAL GOSUB.
                     ldy       BASEND              ; YES. MAKE RETURN POINT TO THE LAST EOL TOKEN
                     dey                           ; IN THE PROGRAM.
@@ -5157,8 +5217,7 @@ RGOSUB3             ldb       #3                  ; BYPASS THE LINE NUMBER.
                     aby
 RGOSUB2             jsr       RSKIPSPC            ; SKIP SPACES AFTER THE LINE NUMBER.
                     ldx       GOSTACK             ; GET THE GOSUB STACK POINTER.
-                    dex                           ; POINT TO THE NEXT ENTRY ON THE STACK.
-                    dex
+                    dex:2                         ; POINT TO THE NEXT ENTRY ON THE STACK.
                     cpx       EGOSTK              ; OUT OF STACK SPACE?
                     bhs       RGOSUB1             ; NO. GO PUSH THE "RETURN ADDRESS" ON THE STACK.
                     lda       #GOSOVERR           ; YES. GET THE ERRCODE.
@@ -5169,6 +5228,8 @@ RGOSUB1             stx       GOSTACK             ; SAVE THE "GOSUB" STACK POINT
                     puly                          ; GET THE POINTER TO THE LINE NUMBER.
                     jmp       RGOTO               ; GO DO A "GOTO".
 
+;*******************************************************************************
+
 RRETURN             proc
                     ldx       GOSTACK             ; GET THE GOSUB STACK POINTER.
                     cpx       STGOSTK             ; IS THERE A RETURN ADDRESS ON THE GOSUB STACK?
@@ -5177,8 +5238,7 @@ RRETURN             proc
                     jmp       RPTRERR             ; REPORT THE ERROR.
 
 Go@@                ldy       ,x                  ; GET THE RETURN ADDRESS IN THE IP.
-                    inx                           ; REMOVE THE ADDRESS FROM THE STACK.
-                    inx
+                    inx:2                         ; REMOVE THE ADDRESS FROM THE STACK.
                     stx       GOSTACK             ; SAVE THE STACK POINTER.
                     rts                           ; BACK TO THE MAIN INTERPRET LOOP.
 
@@ -5202,14 +5262,13 @@ REND1               ldd       #0
                     std       CURLINE
                     jmp       MAINW
 
-STOPSTR             fcs       LF,CR,"STOPPED AT LINE # "
+STOPSTR             fcs       LF,CR,'STOPPED AT LINE # '
 
 ;*******************************************************************************
 
 RWHILE              proc
                     ldx       WHSTACK             ; GET THE WHILE STACK POINTER.
-                    dex                           ; POINT TO THE NEXT STACK LOCATION.
-                    dex
+                    dex:2                         ; POINT TO THE NEXT STACK LOCATION.
                     cpx       EWHSTK              ; ARE WE AT THE END OF THE STACK?
                     bhs       Go@@                ; NO. GO STACK IT.
                     lda       #WHSOVERR           ; YES. WHILE STACK OVER FLOW.
@@ -5227,7 +5286,7 @@ Loop@@
                     rts
 Save@@
           #ifdef BUGFIX
-                    pshb                          ; BugFix: (2017.10.17 <tonyp@acm.org>)
+                    pshb
           #endif
                     pshy                          ; SAVE THE IP.
                     cpy       BASEND              ; ARE WE AT THE END OF THE PROGRAM?
@@ -5267,13 +5326,11 @@ Go@@                pshy                          ; SAVE THE IP IN CASE THE WHIL
                     bne       Exec@@              ; YES. GO EXECUTE CODE BETWEEN WHILE & ENDWH.
                     puly                          ; NO. GET THE ADDRESS OF THE NEXT LINE/STATEMENT.
                     ldx       WHSTACK             ; GET WHILE STACK POINTER.
-                    inx                           ; TAKE ADDRESS OFF OF WHILE STACK.
-                    inx
+                    inx:2                         ; TAKE ADDRESS OFF OF WHILE STACK.
                     stx       WHSTACK             ; SAVE STACK POINTER.
                     bra       Done@@              ; GO TO INTERPRET LOOP.
 
-Exec@@              ins                           ; REMOVE POINTER TO STATEMENT AFTER "ENDWH"
-                    ins                           ; FROM STACK.
+Exec@@              ins:2                         ; REMOVE POINTER TO STATEMENT AFTER "ENDWH" FROM STACK.
 Done@@              rts                           ; GO EXECUTE LINES TILL "ENDWH".
 
 ;*******************************************************************************
@@ -5418,10 +5475,10 @@ RPRINT              proc
                     jsr       CHCKDEV             ; GO CHECK FOR ALTERNATE OUTPUT DEVICE.
                     lda       ,y                  ; GET FIRST TOKEN.
                     cmpa      #EOLTOK             ; IS IT AN EOL TOKEN?
-                    beq       RPRINT1             ; YES. JUST PRINT A CR/LF.
+                    beq       NewLine@@           ; YES. JUST PRINT A CR/LF.
                     cmpa      #MEOLTOK            ; IS IT A MID EOL TOKEN?
                     bne       RPRINT2             ; NO. GO PRINT A STRING OR NUMBER.
-RPRINT1             jsr       NL                  ; YES. JUST PRINT A CR/LF.
+NewLine@@           jsr       NL                  ; YES. JUST PRINT A CR/LF.
                     clr       DEVNUM              ; GO BACK TO DEVICE #0.
                     rts                           ; BACK TO MAIN INTERPRET LOOP.
 
@@ -5429,20 +5486,19 @@ RPRINT2             cmpa      #SCONTOK            ; IS IT A STRING CONSTANT?
                     bne       RPRINT3             ; NO. GO CHECK FOR A "PRINT FUNCTION".
                     pshy
                     ldb       #2                  ; COMPENSATE FOR CONSTANT & LENGTH BYTE.
-                    addb      1,Y                 ; ADD IN LENGTH BYTE.
+                    addb      1,y                 ; ADD IN LENGTH BYTE.
                     aby                           ; POINT BEYOND PROMPT.
                     pulx                          ; GET POINTER INTO X.
                     inx                           ; POINT TO LENGTH BYTE.
                     ldb       ,x                  ; GET IT.
                     subb      #2                  ; SUBTRACT OUT THE DELIMETER COUNT.
-                    inx                           ; POINT TO STRING.
-                    inx
+                    inx:2                         ; POINT TO STRING.
                     jsr       OUTSTR              ; GO PRINT THE STRING.
                     bra       RPRINT4             ; GO DO NEXT EXPRESSION.
 
 RPRINT3             cmpa      #FUNCTFLG           ; IS IT A FUNCTION?
                     bne       RPRINT10            ; NO. GO EVALUATE A NUMERIC EXPRESSION.
-                    lda       1,Y                 ; GET THE FUNCTION TYPE.
+                    lda       1,y                 ; GET THE FUNCTION TYPE.
                     cmpa      #TABTOK             ; IS IT A TAB?
                     bne       RPRINT11            ; NO GO CHECK FOR "CHR$".
                     jsr       RTAB                ; GO DO TAB.
@@ -5512,7 +5568,6 @@ Loop@@              cmpb      PRINTPOS            ; ARE WE ALREADY PAST THE "TAB
                     lda       #SPC                ; GET A SPACE.
                     jsr       OUTBYTE             ; PRINT IT.
                     bra       Loop@@
-
 Done@@              rts                           ; RETURN.
 
 ;*******************************************************************************
@@ -5550,10 +5605,7 @@ PRNT2HEX            proc
                     pula                          ; GET BYTE BACK.
                     bra       Lsb@@               ; PRINT RIGHT NIBBLE & RETURN.
 
-Msb@@               lsra                          ; GET UPPER NIBBLE INTO LOWER ONE.
-                    lsra
-                    lsra
-                    lsra
+Msb@@               lsra:4                        ; GET UPPER NIBBLE INTO LOWER ONE.
 Lsb@@               anda      #$0F                ; MASK OFF UPPER NIBBLE.
                     adda      #'0'                ; MAKE IT A HEX NUMBER.
                     cmpa      #'9'                ; IS IT?
@@ -5582,7 +5634,7 @@ RDIM                proc
                     lda       #NOSUBERR           ; NO. GET ERROR.
 Fail@@              jmp       RPTRERR             ; GO REPORT THE ERROR.
 
-Go@@                ldd       1,Y                 ; GET THE OFFSET INTO THE DICTIONARY.
+Go@@                ldd       1,y                 ; GET THE OFFSET INTO THE DICTIONARY.
                     addd      VARBEGIN            ; ADD IN THE START OF THE DICTIONARY.
                     xgdx                          ; PUT THE ADDRESS INTO X.
                     ldd       3,x                 ; GET THE POINTER TO THE STORAGE. BEEN DIMENSIONED?
@@ -5621,8 +5673,7 @@ Fail2@@             jmp       RPTRERR             ; GO REPORT THE ERROR.
 
 SavePtr@@           std       STRASTG             ; SAVE POINTER.
                     ldx       3,x                 ; POINT TO START OF STORAGE.
-                    inx
-                    inx                           ; POINT PAST THE SUBSCRIPT LIMIT.
+                    inx:2                         ; POINT PAST THE SUBSCRIPT LIMIT.
 Clear@@             clr       ,x                  ; CLEAR THE STORAGE.
                     inx                           ; POINT TO THE NEXT LOCATION.
                     cpx       STRASTG             ; ARE WE DONE?
@@ -5728,14 +5779,13 @@ RINPUT              proc
                     bne       Loop@@              ; NO JUST GO GET THE DATA.
                     pshy                          ; YES. SAVE POINTER.
                     ldb       #2                  ; COMPENSATE FOR CONSTANT & LENGTH BYTE.
-                    addb      1,Y                 ; ADD IN LENGTH BYTE.
+                    addb      1,y                 ; ADD IN LENGTH BYTE.
                     aby                           ; POINT BEYOND PROMPT.
                     pulx                          ; GET POINTER INTO X.
                     inx                           ; POINT TO LENGTH BYTE.
                     ldb       ,x                  ; GET IT.
                     subb      #2                  ; SUBTRACT OUT THE DELIMETER COUNT.
-                    inx                           ; POINT TO STRING.
-                    inx
+                    inx:2                         ; POINT TO STRING.
                     jsr       OUTSTR              ; GO PRINT THE STRING.
                     iny                           ; BYPASS COMMA.
                     jsr       RSKIPSPC            ; SKIP SPACES AFTER COMMA.
@@ -5751,7 +5801,7 @@ Prompt@@            ldx       #Msg@@              ; POINT TO PROMPT.
                     clr       DEVNUM              ; SET DEVICE NUMBER BACK TO 0.
                     rts
 
-Msg@@               fcs       "? "
+Msg@@               fcs       '? '
 
 ;*******************************************************************************
 
@@ -5809,21 +5859,20 @@ INNUMD              proc
                     bne       Decimal@@
                     jsr       INCIBP
                     jsr       GETHEX
-                    bra       INNUM3
+                    bra       Go@@
 
 Decimal@@           jsr       INDECI
-INNUM3              equ       *
-                    pshd
+Go@@                pshd
                     jsr       SKIPSPCS
                     cmpa      #COMMA
-                    beq       INNUM4
+                    beq       Comma@@
                     cmpa      #EOL
-                    beq       INNUM7
+                    beq       Eol@@
                     lda       #MCOMAERR
                     jmp       RPTRERR
 
-INNUM4              jsr       INCIBP
-INNUM7              jsr       RVARPTR
+Comma@@             jsr       INCIBP
+Eol@@               jsr       RVARPTR
                     xgdx
                     puld
                     std       ,x
@@ -5859,20 +5908,19 @@ Plus@@              jsr       GETDECI
 
 RREAD               proc
                     ldx       DATAPTR             ; GET POINTER TO DATA. IS IT POINTING TO DATA?
-                    bne       RREAD1              ; YES. CONTINUE TO READ DATA.
+                    bne       Go@@                ; YES. CONTINUE TO READ DATA.
                     bsr       RRESTOR             ; NO. GO GET POINTER TO FIRST DATA STATEMENT.
                     ldx       DATAPTR             ; GET POINTER TO DATA.
-RREAD1              stx       IBUFPTR             ; PUT IT IN THE INPUT BUFFER POINTER.
+Go@@                stx       IBUFPTR             ; PUT IT IN THE INPUT BUFFER POINTER.
                     jsr       RINRDC              ; GO USE INPUT/READ COMMON CODE.
-                    bcs       RREAD2              ; IF CARRY SET, MORE DATA TO READ.
+                    bcs       ReadMore@@          ; IF CARRY SET, MORE DATA TO READ.
                     ldx       IBUFPTR             ; GET POINTER TO DATA LINE.
                     stx       DATAPTR             ; SAVE DATA POINTER FOR NEXT READ.
                     rts                           ; RETURN.
 
-RREAD2              pshy                          ; SAVE Y.
+ReadMore@@          pshy                          ; SAVE Y.
                     ldy       IBUFPTR
-                    iny
-                    iny
+                    iny:2
                     bsr       RESTOR4             ; GO FIND NEXT "DATA" STATEMENT.
                     puly                          ; RESTORE Y.
                     bra       RREAD               ; KEEP READING DATA.
@@ -5883,7 +5931,7 @@ RRESTOR             proc
                     pshy                          ; SAVE Y.
                     ldy       BASBEG              ; START SEARCH FOR "DATA" STATEMENTS AT THE BEGIN.
 Loop@@              pshy                          ; SAVE POINTER TO THIS LINE.
-                    ldb       2,Y                 ; GET LINE LENGTH.
+                    ldb       2,y                 ; GET LINE LENGTH.
                     aby                           ; GET START OF NEXT LINE.
                     sty       DATAPTR             ; SAVE IN "DATAPTR".
                     puly                          ; RESTORE POINTER.
@@ -5899,8 +5947,7 @@ Cont@@              cpy       BASEND              ; ARE WE AT THE END OF THE PRO
                     lda       #ODRDERR            ; OUT OF DATA ERROR.
                     jmp       RPTRERR             ; REPORT THE ERROR.
 
-Done@@              iny                           ; POINT PAST DATA TOKEN & THE DATA LENGTH.
-                    iny
+Done@@              iny:2                         ; POINT PAST DATA TOKEN & THE DATA LENGTH.
                     sty       DATAPTR             ; SAVE POINTER TO DATA.
                     puly                          ; RESTORE Y.
                     rts                           ; RETURN.
@@ -5936,12 +5983,12 @@ REEP                proc                          ; PROGRAM A WORD OF EEPROM.
                     iny                           ; PASS UP THE OPEN PAREN.
                     jsr       RSKIPSPC            ; PASS UP ANY SPACES.
                     jsr       DONEXP              ; GO GET THE "SUBSCRIPT" OF THE EEPROM LOCATION.
-                    iny                           ; PASS UP THE CLOSING PAREN.
-                    iny                           ; PASS UP THE EQUALS TOKEN.
+                    iny:2                         ; PASS UP THE CLOSING PAREN.
+                                                  ; PASS UP THE EQUALS TOKEN.
                     jsr       DONEXP              ; GET VALUE TO FROGRAM INTO EEPROM.
                     pshy                          ; SAVE THE Y REG.
                     ldy       NUMSTACK            ; POINT TO THE NUMERIC STACK.
-                    ldd       2,Y                 ; GET THE SUBSCRIPT FOR THE EEPROM LOCATION.
+                    ldd       2,y                 ; GET THE SUBSCRIPT FOR THE EEPROM LOCATION.
                     bmi       Fail@@              ; NEGATIVE SUBSCRIPTS NOT ALLOWED.
                     cpd       #MAXEESUB           ; IS THE SUBSCRIPT WITHIN RANGE?
                     bls       Go@@                ; YES. CONTINUE.
@@ -5960,7 +6007,7 @@ Skip@@              inx                           ; POINT TO NEXT BYTE.
                     cmpa      #$FF                ; DOES THIS BYTE NEED TO BE ERASED?
                     beq       Write@@             ; NO. GO WRITE DATA TO EEPROM.
                     bsr       ERASEBYT            ; YES. GO ERASE THE BYTE.
-Write@@             lda       1,Y                 ; GET LS BYTE OF WORD.
+Write@@             lda       1,y                 ; GET LS BYTE OF WORD.
                     bsr       PROGBYTE            ; GO PROGRAM THE BYTE.
                     dex                           ; POINT TO THE MOST SIGNIFIGANT EEPROM LOCATION.
                     lda       ,y                  ; GET THE MS BYTE OF THE WORD.
@@ -5976,19 +6023,19 @@ ERASEBYT            proc
                     pshy
                     ldy       IOBaseV             ; Point to the base address of the I/O Registers.
                     ldb       #$16                ; SET UP BYTE ERASE MODE, ADDR LATCH, ERASE
-                    stb       PPROG,Y             ; VOLTAGE OFF.
+                    stb       PPROG,y             ; VOLTAGE OFF.
                     sta       ,x                  ; LATCH ADDRESS.
                     tpa                           ; GET CURRENT I-BIT STATUS.
                     psha                          ; SAVE IT.
                     sei                           ; INHIBIT INTERRUPTS WHILE ERASING.
                     ldb       #$17                ; TURN ON ERASE VOLTAGE
-                    stb       PPROG,Y
+                    stb       PPROG,y
                     bsr       DLY10MS             ; DELAY ABOUT 10 MS.
                     ldb       #$16                ; TURN PROGRAMING VOLTAGE OFF.
-                    stb       PPROG,Y
+                    stb       PPROG,y
                     pula                          ; GET ORIGINAL I-BIT STATUS.
                     tap                           ; RESTORE IT.
-                    clr       PPROG,Y
+                    clr       PPROG,y
                     puly
                     rts                           ; RETURN.
 
@@ -5998,20 +6045,20 @@ PROGBYTE            proc
                     pshy
                     ldy       IOBaseV             ; Point to the base address of the I/O Registers.
 Loop@@              ldb       #$02                ; SET UP NORMAL PROGRAMING MODE, ADDRESS/DATA
-                    stb       PPROG,Y             ; LATCHED, PROGRAMING VOLTAGE OFF.
+                    stb       PPROG,y             ; LATCHED, PROGRAMING VOLTAGE OFF.
                     sta       ,x                  ; LATCH DATA & ADDRESS.
                     psha                          ; SAVE THE DATA FOR COMPARE AFTER PROGRAMING.
                     tpa                           ; GET CURRENT I-BIT STATUS.
                     psha                          ; SAVE IT.
                     sei                           ; INHIBIT INTERRUPTS WHILE PROGRAMING.
                     ldb       #$03                ; TURN ON PROGRAMING VOLTAGE.
-                    stb       PPROG,Y
+                    stb       PPROG,y
                     bsr       DLY10MS             ; LEAVE IT ON FOR 10 MS.
                     ldb       #$02                ; NOW, TURN THE PROGRAMMING VOLTAGE OFF.
-                    stb       PPROG,Y
+                    stb       PPROG,y
                     pula                          ; GET ORIGINAL I-BIT STATUS.
                     tap                           ; RESTORE IT.
-                    clr       PPROG,Y             ; PUT THE EEPROM BACK IN THE READ MODE.
+                    clr       PPROG,y             ; PUT THE EEPROM BACK IN THE READ MODE.
                     pula                          ; RESTORE THE DATA TO SEE IF IT WAS PROGRAMMED.
                     cmpa      ,x                  ; WAS THE DATA WRITTEN PROPERLY?
                     bne       Loop@@              ; NO. TRY AGAIN.
@@ -6063,8 +6110,7 @@ RRTIME              proc
                     ldx       IOBaseV             ; Point to the I/O Base Address.
                     ldd       TCNT,x              ; get the current value of the timer counter.
                     jsr       TIMINTS3            ; go initialize the TOC using the timer interrupt code.
-                    clra
-                    clrb
+                    clrd
                     std       TIMEREG             ; PUT IT IN THE TIME REGISTER.
                     cli
                     rts                           ; RETURN.
@@ -6087,7 +6133,7 @@ Go@@                ldx       IOBaseV
 ;*******************************************************************************
 
 RONTIME             proc
-                    bsr       CHCKIMID            ; NOT ALLOWED IN IMMIDIATE.
+                    bsr       CHCKIMED            ; NOT ALLOWED IN IMMEDIATE.
                     jsr       DONEXP              ; GO EVALUATE THE TIME "MATCH" EXPRESSION.
                     jsr       PULNUM              ; GET THE NUMBER OFF THE STACK.
                     std       TIMECMP             ; PUT IN THE COMPARE REGISTER.
@@ -6100,7 +6146,7 @@ RONTIME             proc
 ;*******************************************************************************
 
 RONIRQ              proc
-                    bsr       CHCKIMID
+                    bsr       CHCKIMED
                     jsr       DONEXP              ; GO CHECK TO SEE IF WE ARE TO ENABLE OR DISABLE.
                     jsr       RSKIPSPC            ; SKIP SPACES UP TO COMMA.
                     iny                           ; BYPASS COMMA.
@@ -6118,7 +6164,7 @@ RONIRQ2             ldb       #3                  ; MOVE IP PAST THE LINE NUMBER
 ;*******************************************************************************
 
 RRETI               proc
-                    bsr       CHCKIMID
+                    bsr       CHCKIMED
                     tpa                           ; CHECK TO SEE IF THE INTERRUPT MASK IS SET.
                     bita      #$10                ; ARE WE IN AN INTERRUPT ROUTINE?
                     bne       Go@@                ; SINCE THE IRQ MASK IS SET WE MUST BE.
@@ -6129,14 +6175,13 @@ Go@@                ldd       SCURLINE            ; RESTORE THE MAIN PROGRAM CUR
                     std       CURLINE
                     ldd       SADRNXLN            ; RESTORE MAIN PROGRAM "ADDRESS OF THE NEXT LINE".
                     std       ADRNXLIN
-                    ins                           ; TAKE THE RETURN ADDRESS OFF THE STACK.
-                    ins
+                    ins:2                         ; TAKE THE RETURN ADDRESS OFF THE STACK.
                     rti                           ; GO BACK TO WHERE WE LEFT OFF.
 
 ;*******************************************************************************
 
-CHCKIMID            proc
-                    tst       IMMID               ; ARE WE IN THE IMMIDIATE MODE?
+CHCKIMED            proc
+                    tst       IMMED               ; ARE WE IN THE IMMEDIATE MODE?
                     beq       Done@@              ; NO. JUST RETURN.
                     lda       #NOTALERR           ; YES. THIS COMMAND NOT ALLOWED.
                     jmp       RPTRERR             ; REPORT THE ERROR.
@@ -6145,7 +6190,7 @@ Done@@              rts                           ; RETURN.
 ;*******************************************************************************
 
 RONPACC             proc
-                    bsr       CHCKIMID            ; THIS INSTRUCTION NOT ALLOWED IN IMMID MODE.
+                    bsr       CHCKIMED            ; THIS INSTRUCTION NOT ALLOWED IN IMMED MODE.
                     jsr       DONEXP              ; GO EVALUATE THE COUNT MODE EXPRESSION.
                     jsr       RSKIPSPC            ; SKIP SPACES.
                     iny                           ; BYPASS THE COMMA.
@@ -6160,30 +6205,27 @@ RONPACC             proc
                     sty       ONPACLIN            ; SAVE POINTER TO INTERRUPT ROUTINE.
                     jsr       PULNUM              ; GET INTERRUPT MODE OFF STACK.
                     cpd       #1                  ; IS THE ARGUMENT <=1?
-                    bls       RONPACC2            ; YES. ARG. OK.
+                    bls       Go@@                ; YES. ARG. OK.
 Fail@@              lda       #INTMODER           ; NO. GET ERROR CODE.
                     jmp       RPTRERR
 
-RONPACC2            lda       #$10                ; GET BIT TO ENABLE INTERRUPT.
+Go@@                lda       #$10                ; GET BIT TO ENABLE INTERRUPT.
                     tstb                          ; WAS THE ARGUMENT 0?
-                    beq       RONPACC3            ; YES. GO ENABLE INTS. ON EACH COUNT.
+                    beq       EnableInts@@        ; YES. GO ENABLE INTS. ON EACH COUNT.
                     lsla                          ; NO. ENABLE INTS. ON PACC OVERFLOW ONLY.
-RONPACC3            ldx       IOBaseV
+EnableInts@@        ldx       IOBaseV
                     sta       TMSK2,x
                     jsr       PULNUM              ; GET THE COUNT MODE OFF THE STACK.
-                    bne       RONPACC4            ; GO SET THE MODE IF NOT 0.
+                    bne       SetMode@@           ; GO SET THE MODE IF NOT 0.
                     ldx       IOBaseV
                     clr       PACTL,x             ; TURN OFF THE PULSE ACCUMULATOR.
                     std       ONPACLIN            ; CLEAR POINTER TO LINE NUMBER.
                     bra       Done@@              ; GO CLEAN UP & RETURN.
 
-RONPACC4            cpd       #4                  ; IS THE ARGUMENT IN RANGE?
+SetMode@@           cpd       #4                  ; IS THE ARGUMENT IN RANGE?
                     bhi       Fail@@              ; YES. REPORT AN ERROR.
                     addb      #3                  ; GET BIT TO ENABLE PACC.
-                    lslb
-                    lslb
-                    lslb
-                    lslb
+                    lslb:4
                     ldx       IOBaseV
                     stb       PACTL,x             ; ENABLE THE PACC & SET MODE.
 Done@@              pula                          ; GET OLD I-BIT STATUS OFF STACK.
@@ -6233,25 +6275,25 @@ Save@@              iny                           ; POINT TO THE NEXT TOKEN.
 
 PSHNUM              proc
                     cmpa      #IVARTOK            ; IS IT AN INTEGER SCALER VARIABLE?
-                    bne       PSHNUM1             ; NO. GO CHECK FOR CONSTANT.
-                    ldd       1,Y                 ; YES. GET THE "OFFSET" ADDRESS.
+                    bne       Const@@             ; NO. GO CHECK FOR CONSTANT.
+                    ldd       1,y                 ; YES. GET THE "OFFSET" ADDRESS.
                     addd      VARBEGIN            ; ADD IN THE START ADDRESS OF THE VARIABLE TABLE.
                     xgdx                          ; GET THE ADDRESS INTO X.
                     ldb       #$03                ; BUMP INTERPRETER POINTER PAST "VARIABLE".
                     aby
                     ldd       3,x                 ; GET THE VARIABLE VALUE.
-                    bra       PSHNUM4             ; GO PUT IT ON THE STACK.
+                    bra       PushOpStackReturn   ; GO PUT IT ON THE STACK.
 
-PSHNUM1             cmpa      #ICONTOK            ; IS IT AN INTEGER CONSTANT?
-                    bne       PSHNUM2             ; NO. GO CHECK FOR AN INTEGER ARRAY VARIABLE.
-                    ldx       1,Y                 ; GET THE CONSTANT VALUE INTO X.
+Const@@             cmpa      #ICONTOK            ; IS IT AN INTEGER CONSTANT?
+                    bne       IntArray@@          ; NO. GO CHECK FOR AN INTEGER ARRAY VARIABLE.
+                    ldx       1,y                 ; GET THE CONSTANT VALUE INTO X.
                     ldb       #$04
-                    addb      3,Y
+                    addb      3,y
                     aby
                     xgdx                          ; PUT THE CONSTANT VALUE INTO D.
-                    bra       PSHNUM4             ; GO PUT IT ON THE STACK.
+                    bra       PushOpStackReturn   ; GO PUT IT ON THE STACK.
 
-PSHNUM2             cmpa      #IAVARTOK           ; IS IT AN INTEGER ARRAY?
+IntArray@@          cmpa      #IAVARTOK           ; IS IT AN INTEGER ARRAY?
                     bne       Fail@@              ; NO. GO CHECK FOR A STRING VARIABLE.
                     bsr       CALCSUB             ; GO GET BASE ADDR. & SUBSCRIPT OF ARRAY.
                     pshy                          ; SAVE THE INTERPRETER POINTER.
@@ -6263,14 +6305,16 @@ PSHNUM2             cmpa      #IAVARTOK           ; IS IT AN INTEGER ARRAY?
                     puly                          ; RESTORE Y
                     xgdx                          ; PUT ELEMENT ADDRESS INTO X.
                     ldd       ,x                  ; GET VALUE OF ELEMENT IN D.
-                    bra       PSHNUM4
+                    bra       PushOpStackReturn
 
 Fail@@              lda       #ILTOKERR
                     jmp       RPTRERR
 
-PSHNUM4             ldx       NUMSTACK            ; GET THE OPERAND STACK POINTER.
-                    dex                           ; MAKE ROOM ON THE STACK FOR NEW OPERAND.
-                    dex
+;*******************************************************************************
+
+PushOpStackReturn   proc
+                    ldx       NUMSTACK            ; GET THE OPERAND STACK POINTER.
+                    dex:2                         ; MAKE ROOM ON THE STACK FOR NEW OPERAND.
                     cpx       ENUMSTK             ; HAS THE STACK OVERFLOWED?
                     bhs       Save@@              ; NO. GO STACK THE VALUE.
                     lda       #MSTKOERR           ; YES.
@@ -6289,7 +6333,7 @@ Save@@              stx       NUMSTACK            ; SAVE THE STACK POINTER.
 ;        ADDRESS OF THE ARRAY IN THE X-REG. & THE SUBSCRIPT IN THE D-REG.
 
 CALCSUB             proc
-                    ldd       1,Y                 ; GET THE VARIABLE OFFSET ADDRESS.
+                    ldd       1,y                 ; GET THE VARIABLE OFFSET ADDRESS.
                     addd      VARBEGIN            ; ADD IN THE START OF THE VARIABLE AREA.
                     xgdx                          ; PUT ADDRESS INTO X.
                     ldx       3,x                 ; GET THE ACTUAL STORAGE ADDRESS.
@@ -6310,8 +6354,7 @@ Go@@                ldb       #4                  ; SET POINTER TO START OF SUBS
                     lda       #SUBORERR           ; NO. SUBSCRIPT OUT OF RANGE ERROR.
                     bra       Fail@@              ; GO REPORT IT.
 
-Done@@              inx                           ; BYPASS THE SUBSCRIPT LIMIT.
-                    inx
+Done@@              inx:2                         ; BYPASS THE SUBSCRIPT LIMIT.
                     rts
 
 ;*******************************************************************************
@@ -6320,8 +6363,7 @@ PULNUM              proc
                     pshx                          ; SAVE THE X-REG.
                     ldx       NUMSTACK            ; GET THE OPERAND STACK POINTER.
                     ldd       ,x                  ; GET THE OPERAND.
-                    inx                           ; BUMP THE STACK POINTER.
-                    inx
+                    inx:2                         ; BUMP THE STACK POINTER.
                     stx       NUMSTACK            ; SAVE THE STACK POINTER.
                     pulx                          ; RESTORE THE X-REG.
                     cpd       #0                  ; "TEST" THE OPERAND BEFORE WE RETURN.
@@ -6337,7 +6379,7 @@ CHKNFUN             proc
                     beq       Go@@                ; YES. GO DO THE FUNCTION.
                     rts                           ; NO. JUST RETURN.
 
-Go@@                lda       1,Y                 ; GET THE FUNCTION CODE BYTE IN B.
+Go@@                lda       1,y                 ; GET THE FUNCTION CODE BYTE IN B.
                     deca                          ; SUBTRACT 1 FOR INDEXING.
                     ldb       #3                  ; BUMP THE IP.
                     aby                           ; POINT TO THE FIRST ELEMENT IN THE EXPRESSION.
@@ -6421,8 +6463,7 @@ Loop@@              ldx       OPSTACK
                     bne       Save@@              ; NO. CONTINUE.
                     cmpa      #OPARNTOK           ; YES. IS THE PREVIOUS OPERATOR AN OPEN PAREN?
                     bne       Save@@              ; NO. CONTINUE.
-                    inx                           ; YES. KNOCK BOTH OPERATORS OFF THE STACK.
-                    inx
+                    inx:2                         ; YES. KNOCK BOTH OPERATORS OFF THE STACK.
                     stx       OPSTACK             ; SAVE THE STACK POINTER.
 Done@@              rts                           ; RETURN.
 
@@ -6547,8 +6588,7 @@ RMINUS              proc
                     ldx       NUMSTACK
                     ldd       2,x
                     subd      ,x
-                    inx
-                    inx
+                    inx:2
                     std       ,x
                     stx       NUMSTACK
                     rts
@@ -6625,8 +6665,7 @@ RMULT               proc
                     mul
                     addb      ,y
                     stb       ,y
-                    inx
-                    inx
+                    inx:2
                     puld
                     std       ,x
                     stx       NUMSTACK
@@ -6661,8 +6700,7 @@ RLT                 proc
                     bsr       CMPNUM
                     bge       RLT1
 RLT2                inc       3,x
-RLT1                inx
-                    inx
+RLT1                inx:2
                     stx       NUMSTACK
                     rts
 
@@ -6800,8 +6838,7 @@ RFDIV2              bra       RFEEP2              ; GO REPORT IT.
 
 Go@@                xgdx                          ; PUT QUOTIENT IN D.
                     ldx       NUMSTACK            ; POINT TO OPERAND STACK.
-                    inx                           ; REMOVE DIVISOR FROM STACK.
-                    inx
+                    inx:2                         ; REMOVE DIVISOR FROM STACK.
                     std       ,x                  ; PUT QUITIENT ON OPERAND STACK.
                     stx       NUMSTACK            ; SAVE NEW VALUE OF STACK POINTER.
                     rts                           ; RETURN.
@@ -6830,76 +6867,94 @@ RADC2               tst       ADCTL,x             ; IS THE CONVERSION COMPLETE?
                     adca      #0                  ; ADD IN CARRY.
                     addb      ADR4,x              ; ADD IN THE FOURTH.
                     adca      #0                  ; ADD IN CARRY.
-                    lsrd                          ; DIVIDE RESULT BY 4.
-                    lsrd
+                    lsrd:2                        ; DIVIDE RESULT BY 4.
                     ldx       NUMSTACK            ; POINT TO THE RESULT.
                     std       ,x                  ; PUT THE RESULT ON THE OPERAND STACK.
                     rts                           ; RETURN.
 
-RRND                equ       *
+;*******************************************************************************
+
+RRND                proc
                     jsr       DONEXP              ; GO GET FUNCTION ARGUMENT.
                     ldx       NUMSTACK            ; GET ARGUMENT OFF STACK. GET NEW RANDOM NUMBER?
                     ldd       ,x
-                    beq       RRND2               ; YES. GO GET NEXT RANDOM NUMBER IN THE SERIES.
-                    bmi       RRND1               ; IF NEG., START A NEW SERIES.
+                    beq       NextNum@@           ; YES. GO GET NEXT RANDOM NUMBER IN THE SERIES.
+                    bmi       New@@               ; IF NEG., START A NEW SERIES.
                     ldd       RANDOM              ; IF POSITIVE, GET LAST RANDOM NUMBER.
-                    bra       RRND3               ; RETURN.
+                    bra       Done@@              ; RETURN.
 
-RRND1               ldx       IOBaseV
+New@@               ldx       IOBaseV
                     ldd       TCNT,x              ; USE THE TIMER VALUE AS THE NEW SEED.
                     std       RANDOM              ; SAVE IT.
-RRND2               ldd       RANDOM              ; GET PREVIOUS RANDOM NUMBER (USE AS SEED).
+NextNum@@           ldd       RANDOM              ; GET PREVIOUS RANDOM NUMBER (USE AS SEED).
                     aslb                          ; DO SOME OPERATIONS.
                     aba
                     ldb       RANDOM+1
-                    asld
-                    asld
+                    asld:2
                     addd      RANDOM
                     addd      #$3619
                     std       RANDOM
-RRND3               lsrd                          ; MAKE THE NUMBER POSITIVE.
+Done@@              lsrd                          ; MAKE THE NUMBER POSITIVE.
                     std       ,x                  ; PUT THE NUMBER ON THE STACK.
                     rts                           ; RETURN.
+
+;*******************************************************************************
 
 ITAB                equ       *
 ICHRS               equ       *
 IHEX                equ       *
-IHEX2               equ       *
+IHEX2               proc
                     lda       #PRFUNERR           ; THESE FUNCTIONS MUST BE USED ONLY IN
                     jmp       RPTRERR             ; PRINT STATEMENTS.
 
-RFTIME              ldd       TIMEREG             ; GET THE TIME IN SECONDS.
+;*******************************************************************************
+
+RFTIME              proc
+                    ldd       TIMEREG             ; GET THE TIME IN SECONDS.
                     bra       RFPORTA2            ; GO PUT NUMBER ON THE STACK.
 
-RFPACC              ldx       IOBaseV
+;*******************************************************************************
+
+RFPACC              proc
+                    ldx       IOBaseV
                     ldb       PACNT,x             ; GET THE CURRENT VALUE OF THE PULSE ACCUMULATOR.
                     clra
                     bra       RFPORTA2            ; GO PUT THE NUMBER ON THE STACK.
 
-RFPORTA             equ       *
+;*******************************************************************************
+
+RFPORTA             proc
                     ldb       #PORTAIO            ; GET DATA FROM PORTA.
 RFPORTA1            ldx       IOBaseV
                     abx
                     ldb       ,x
                     clra                          ; CLEAR UPPER BYTE OF WORD.
-RFPORTA2            dey                           ; DECREMENT IP BECAUSE CALLING ROUTINE WILL TRY
-                    dey                           ; TO BUMP IT PAST AN OPENING & CLOSING PAREN
+RFPORTA2            dey:2                         ; DECREMENT IP BECAUSE CALLING ROUTINE WILL TRY
+                                                  ; TO BUMP IT PAST AN OPENING & CLOSING PAREN
                                                   ; WHICH ISN'T THERE.
-                    jmp       PSHNUM4             ; GO PUSH VALUE ON OPERAND STACK & RETURN.
+                    jmp       PushOpStackReturn   ; GO PUSH VALUE ON OPERAND STACK & RETURN.
 
-RFPORTB             equ       *
+;*******************************************************************************
+
+RFPORTB             proc
                     ldb       #PORTBIO
                     bra       RFPORTA1
 
-RFPORTC             equ       *
+;*******************************************************************************
+
+RFPORTC             proc
                     ldb       #PORTCIO
                     bra       RFPORTA1
 
-RFPORTD             equ       *
+;*******************************************************************************
+
+RFPORTD             proc
                     ldb       #PORTDIO
                     bra       RFPORTA1
 
-RFPORTE             equ       *
+;*******************************************************************************
+
+RFPORTE             proc
                     ldb       #PORTEIO
                     bra       RFPORTA1
 ;                   opt       lis
@@ -6937,7 +6992,7 @@ INBYTE              proc
                     bra       OUTBYTE1            ; GO USE THE SAME CODE AS OUTBYTE.
 
           #if * > $FF00
-                    #Error    "BASIC Is Too Large"
+                    #Fatal    BASIC Is Too Large
           #endif
                     org       $FF00
 
@@ -7073,7 +7128,7 @@ Send@@              bra       SCIOUT              ; SEND THE CHARACTER TO THE PR
                     title     Config/Reset/Interrupt Vectors
                     page
           #if * > $FFA0
-                    #Fatal    "BASIC Is Too Large"
+                    #Fatal    BASIC Is Too Large
           #endif
                     org       $FFA0
 
@@ -7096,7 +7151,7 @@ IOVects             dw        ACIAIN              ; Inputs
                     dw        0
 
                     org       $FFC0
-RAMStart            dw        $c000               ; starting address of system RAM.
+RAMStart            dw        $C000               ; starting address of system RAM.
 RAMSize             dw        $2000               ; size of BASIC11 RAM Buffer.
 EEStart             dw        $6000               ; starting address of program storage EEPROM
 EESize              dw        $2000               ; size of the program storage EEPROM
@@ -7105,7 +7160,6 @@ TimeVal             dw        62500               ; value used for generating 'T
 UserInit            dw        IODevInit           ; Used to initialize console/other hardware.
 DFLOPADR            dw        $4000               ; Address of flip-flop used to connect the HC11 SCI
                                                   ; to the host port connector.
-
                     org       ROMBEG+ROMSIZE-{21*2}  ; START OF VECTOR TABLE.
                     dw        SCISS               ; SCI SERIAL SYSTEM
                     dw        SPITC               ; SPI TRANSFER COMPLETE
