@@ -300,26 +300,26 @@ ELSETOK             equ       $39                 ; ELSE
 STEPTOK             equ       $3A                 ; STEP
 
 ; function tokens
-
-FDIVTOK             equ       $01                 ; FDIV
-CHRTOK              equ       $02                 ; CHR$
-ADCTOK              equ       $03                 ; ADC
-ABSTOK              equ       $04                 ; ABS
-RNDTOK              equ       $05                 ; RND
-SGNTOK              equ       $06                 ; SGN
-TABTOK              equ       $07                 ; TAB
-CALLTOK             equ       $08                 ; CALL
-PEEKTOK             equ       $09                 ; PEEK
-FEEPTOK             equ       $0A                 ; EEP
-HEXTOK              equ       $0B                 ; HEX
-FPRTATOK            equ       $0C                 ; PORTA
-FPRTBTOK            equ       $0D                 ; PORTB
-FPRTCTOK            equ       $0E                 ; PORTC
-FPRTDTOK            equ       $0F                 ; PORTD
-FPRTETOK            equ       $10                 ; PORTE
-FTIMETOK            equ       $11                 ; TIME
-HEX2TOK             equ       $12                 ; HEX2
-FPACCTOK            equ       $13                 ; PACC
+                    #temp     1
+FDIVTOK             next      :temp               ; FDIV
+CHRTOK              next      :temp               ; CHR$
+ADCTOK              next      :temp               ; ADC
+ABSTOK              next      :temp               ; ABS
+RNDTOK              next      :temp               ; RND
+SGNTOK              next      :temp               ; SGN
+TABTOK              next      :temp               ; TAB
+CALLTOK             next      :temp               ; CALL
+PEEKTOK             next      :temp               ; PEEK
+FEEPTOK             next      :temp               ; EEP
+HEXTOK              next      :temp               ; HEX
+FPRTATOK            next      :temp               ; PORTA
+FPRTBTOK            next      :temp               ; PORTB
+FPRTCTOK            next      :temp               ; PORTC
+FPRTDTOK            next      :temp               ; PORTD
+FPRTETOK            next      :temp               ; PORTE
+FTIMETOK            next      :temp               ; TIME
+HEX2TOK             next      :temp               ; HEX2
+FPACCTOK            next      :temp               ; PACC
 
 ; numerical/variable tokens
 
@@ -354,9 +354,9 @@ PNUMTOK             equ       $78                 ; '#'
 
 JMPOP               equ       $7E                 ; OP-CODE FOR "JMP" (USED TO INITALIZE INTERRUPT TABLE)
 
-;         *********** define variables ***********
-
-                    #RAM
+;*******************************************************************************
+                    #RAM                          ; define variables
+;*******************************************************************************
                     org       $0000
 
 ;               char
@@ -469,7 +469,9 @@ ILLOP               rmb       3                   ; ILLEGAL OPCODE TRAP.
 COP                 rmb       3                   ; WATCH DOG TIMER FAIL.
 CMF                 rmb       3                   ; CLOCK MONITOR FAIL.
 ;                   include   'basiclb1.mod'
+;*******************************************************************************
                     #ROM
+;*******************************************************************************
                     org       ROMBEG
                     title     BASICLB1
 ;*******************************************************************************
@@ -509,7 +511,7 @@ MAIN                proc
                     cli                           ; ALLOW ALL INTERRUPTS TO BE SERVICED.
                     jsr       CRUN
 NormalStart@@       jsr       OUTHEADR            ; PRINT HEADER.
-MAINW               equ       *
+MainLoop            equ       *
 Loop@@              ldd       RAMStart            ; RESET STACK VALUE.
                     addd      RAMSize
                     xgdx
@@ -661,7 +663,7 @@ Loop@@              jsr       INBYTE
 Break?@@            cmpa      #CTRL_C             ; IS IT A "BREAK"?
                     bne       Go@@                ; NO. GO PROCESS THE CHARACTER.
                     inc       CONTFLAG            ; DONT ALLOW A "CONT".
-                    jmp       CHCKBRK2            ; GO DO A BREAK.
+                    jmp       ?DoBreak            ; GO DO A BREAK.
 
 Go@@                cmpa      #SPC
                     blo       Loop@@
@@ -781,29 +783,29 @@ PARSE               proc
 ;  else immed=1;                  if no line # flag as immediate*/
 
                     bsr       GETLINUM
-                    bcc       PARSE2
+                    bcc       Eol?@@
                     psha
                     jsr       GETCHR
                     cmpa      #EOL
                     pula
-                    bne       PARSE1
+                    bne       Go@@
                     jsr       DELLINE
                     ldx       VAREND
                     inx
                     stx       STRASTG
-PARSE7              rts
+Done@@              rts
 
-PARSE1              clr       IMMED
-PARSE8              bsr       PUTLINUM
-                    bra       PARSE3
+Go@@                clr       IMMED
+Loop@@              bsr       PUTLINUM
+                    bra       RunOrSave@@
 
-PARSE2              jsr       GETCHR
+Eol?@@              jsr       GETCHR
                     cmpa      #EOL
-                    beq       PARSE7
+                    beq       Done@@
                     lda       #1
                     sta       IMMED
                     ldd       #0
-                    bra       PARSE8
+                    bra       Loop@@
 
 ; if(errcode) return;             if line number error, return
 ; xlate();                        if translation error, return
@@ -813,12 +815,12 @@ PARSE2              jsr       GETCHR
 ; return;                         go get next line
 ; *}
 
-PARSE3              jsr       XLATE
+RunOrSave@@         jsr       XLATE
                     tst       IMMED
-                    beq       PARSE5
+                    beq       Save@@
                     jmp       RUNLINE             ; GO RUN THE LINE & RETURN.
 
-PARSE5              jsr       STORLIN             ; GO STORE LINE & RETURN.
+Save@@              jsr       STORLIN             ; GO STORE LINE & RETURN.
                     ldx       VAREND
                     inx
                     stx       STRASTG
@@ -843,7 +845,7 @@ GETLINUM            proc
                     ldx       IBUFPTR
                     lda       ,x
                     bsr       NUMERIC
-                    bcc       GTLNUM4
+                    bcc       NotNum@@
 
 ; while(numeric(*ibufptr))       while *ibufptr is numeric
 ; {
@@ -856,19 +858,19 @@ GETLINUM            proc
 
 Loop@@              lda       ,x
                     bsr       NUMERIC
-                    bcs       GTLNUM3
+                    bcs       Cont@@
                     sec
                     ldd       ,y
-                    bne       GTLNUM4
+                    bne       NotNum@@
                     lda       #LINENERR
                     bra       Fail@@
 
-GTLNUM4             ins:2
+NotNum@@            ins:2
                     puly
                     stx       IBUFPTR
                     rts
 
-GTLNUM3             bsr       ADDDIG
+Cont@@              bsr       ADDDIG
                     bpl       Loop@@
                     lda       #LINRANG
 Fail@@              jmp       RPTERR
@@ -1013,49 +1015,46 @@ Numeric@@           bra       NUMERIC
 XLATE               proc
                     jsr       GETCHR              ; GET NEXT CHAR.
                     cmpa      #EOL                ; AT THE END OF THE LINE?
-                    beq       XLATE1              ; YES.
+                    beq       Done@@              ; YES.
                     clr       IFWHFLAG            ; NOT XLATING "IF" OR "WHILE"
                     jsr       BLANKS              ; SKIP BLANKS.
                     ldx       #KEYWORDS           ; POINT TO KEYWORD TABLE.
-XLATE4              jsr       STREQ               ; IS KEYWORD IS IN THE INPUT BUFFER?
-                    bcs       XLATE2              ; YES GO PROCESS IT.
-XLATE3              inx                           ; NO. POINT TO NEXT CHAR.
+Loop@@              jsr       STREQ               ; IS KEYWORD IS IN THE INPUT BUFFER?
+                    bcs       Tokenize@@          ; YES GO PROCESS IT.
+SkipWord@@          inx                           ; NO. POINT TO NEXT CHAR.
                     lda       ,x                  ; AT THE END OF THIS KEYWORD?
-                    bne       XLATE3              ; NO.
+                    bne       SkipWord@@          ; NO.
                     ldb       #4                  ; NUMBER OF BYTES TO SKIP.
                     abx
                     tst       ,x                  ; AT THE END OF THE TABLE?
-                    bne       XLATE4              ; NO. CHCK FOR NEXT KEYWORD.
+                    bne       Loop@@              ; NO. CHCK FOR NEXT KEYWORD.
                     lda       #IMLETTOK           ; ASSUME AN IMPLIED LET.
-;                   jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
                     ldx       #XIMPLET            ; GET ADDR OF XLATION ROUTINE.
-;                   jsr       ,x                  ; GO DO IT.
-;                   bra       XLATE6              ; GO FINISH UP.
-                    bra       XLATE9
+                    bra       SaveToken@@
 
-XLATE2              lda       1,x                 ; GET KEYWORD TOKEN.
+Tokenize@@          lda       1,x                 ; GET KEYWORD TOKEN.
                     ldx       2,x                 ; GET ADDR OF XLATION ROUTINE.
-XLATE9              jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
+SaveToken@@         jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
                     cmpa      #DATATOK            ; SPECIAL CASE, DONT SKIP BLANKS AFTER KEYWORD.
-                    beq       XLATE5
+                    beq       Go@@
                     cmpa      #REMTOK             ; SAME SPECIAL CASE AS FOR DATA.
-                    beq       XLATE5
+                    beq       Go@@
                     jsr       BLANKS              ; SKIP BLANKS BETWEEN KEYWORD & NEXT OBJECT.
-XLATE5              jsr       ,x                  ; GO DO IT.
-XLATE6              jsr       BLANKS              ; SKIP BLANKS.
+Go@@                jsr       ,x                  ; GO DO IT.
+                    jsr       BLANKS              ; SKIP BLANKS.
                     jsr       GETNXCHR            ; GET NEXT CHAR.
                     cmpa      #MIDEOL             ; IS IT A MID EOL?
-                    bne       XLATE7              ; NO. CHCK FOR EOL.
+                    bne       Eol?@@              ; NO. CHCK FOR EOL.
                     lda       #MEOLTOK            ; GET MID EOL TOKEN.
                     jsr       PUTTOK              ; PUT IT IN BUFFER.
                     bra       XLATE               ; CONTINUE.
 
-XLATE7              cmpa      #EOL                ; EOL?
-                    beq       XLATE1              ; YES. FINISH UP.
+Eol?@@              cmpa      #EOL                ; EOL?
+                    beq       Done@@              ; YES. FINISH UP.
                     lda       #SYTXERR            ; NO. SYNTAX ERROR.
                     jmp       RPTERR              ; REPORT XLATION ERROR.
 
-XLATE1              lda       #EOLTOK             ; GET EOL TOKEN.
+Done@@              lda       #EOLTOK             ; GET EOL TOKEN.
                     jsr       PUTTOK              ; PUT IT IN BUFFER.
                     ldd       TBUFPTR             ; GET TOKEN BUFFER POINTER.
                     subd      TKNBUFS             ; Compute the TOKEN BUFFER LENGTH.
@@ -1323,7 +1322,7 @@ INCIBP              proc
                     ldx       IBUFPTR             ; GET POINTER.
                     inx                           ; ADVANCE POINTER.
                     stx       IBUFPTR             ; UPDATE POINTER.
-INCIBP2             pulx                          ; RESTORE X
+PulxRts             pulx                          ; RESTORE X
                     rts                           ; RETURN.
 
 ;*******************************************************************************
@@ -1351,7 +1350,7 @@ PUTTOK              proc
                     addd      #TBUFLEN            ; add the length of the buffer to it.
                     cpd       TBUFPTR             ; IS THE TOKEN BUFFER FULL?
                     puld                          ; (9/12/89). restore the b reg.
-                    bhi       INCIBP2             ; NO. RESTORE X AND RETURN.
+                    bhi       PulxRts             ; NO. RESTORE X AND RETURN.
                     lda       #EXPCXERR           ; YES. FLAG THE ERROR.
                     jmp       RPTERR              ; GO REPORT IT.
 ;                   include   'basiclb2.mod'
@@ -1603,9 +1602,9 @@ XEXPRES             proc
                     pshy
                     psha
                     tsy
-XEXPRS29            ldx       #UINARYOP
+Loop@@              ldx       #UINARYOP
                     jsr       TBLSRCH
-                    bcc       XEXPRS30
+                    bcc       LParen@@
                     bsr       PUTTOK
 
 ;  if(*ibufptr=='(')     open paren?
@@ -1620,7 +1619,7 @@ XEXPRS29            ldx       #UINARYOP
 ;   goto chkoprtr;
 ;  }
 
-XEXPRS30            jsr       GETCHR
+LParen@@            jsr       GETCHR
                     cmpa      #'('
                     bne       XEXPRS1
                     jsr       INCIBP
@@ -1628,13 +1627,13 @@ XEXPRS30            jsr       GETCHR
                     jsr       PUTTOK
                     lda       ,y
                     jsr       XEXPRES
-XEXPRS2             jsr       GETNXCHR
+                    jsr       GETNXCHR
                     cmpa      #')'
-                    beq       XEXPRS3
+                    beq       RParen@@
                     lda       #UPARNERR
                     jmp       RPTERR
 
-XEXPRS3             lda       #CPARNTOK
+RParen@@            lda       #CPARNTOK
                     jsr       PUTTOK
                     jmp       CHKOPRTR
 
@@ -1649,8 +1648,7 @@ XEXPRS3             lda       #CPARNTOK
 ;  if(type==NULL) type=c;
 ;  if(c!=type) { errcode=DTMISERR; return; }
 
-XEXPRS1             equ       *
-                    jsr       NUMERIC
+XEXPRS1             jsr       NUMERIC
                     bcs       XEXPRS4
                     cmpa      #'$'
                     beq       XEXPRS4
@@ -1668,11 +1666,9 @@ XEXPRS7             ldb       ,y
                     bne       XEXPRS8
                     sta       ,y
 XEXPRS8             cmpa      ,y
-                    beq       XEXPRS9
+                    beq       CHKOPRTR
                     lda       #DTMISERR
                     jmp       RPTERR
-
-XEXPRS9             equ       *
 
 ; *now look for operator or end of expression
 ;
@@ -1683,20 +1679,19 @@ XEXPRS9             equ       *
 ;   return(c);
 ;  }
 
-CHKOPRTR            equ       *
-                    jsr       GETCHR
+CHKOPRTR            jsr       GETCHR
                     cmpa      #EOL
-                    beq       XEXPRS24
+                    beq       Done@@
                     cmpa      #MIDEOL
-                    beq       XEXPRS24
+                    beq       Done@@
                     cmpa      #SPC
-                    beq       XEXPRS24
+                    beq       Done@@
                     cmpa      #COMMA
-                    beq       XEXPRS24
+                    beq       Done@@
                     cmpa      #SEMI
-                    beq       XEXPRS24
+                    beq       Done@@
                     cmpa      #')'
-                    beq       XEXPRS24
+                    beq       Done@@
 
 ;  if(type==NUM)
 ;  {
@@ -1705,27 +1700,24 @@ CHKOPRTR            equ       *
 ;   else if(ifwhflag) c=cklogop();
 ;   else c=NULL;
 ;  }
-
-XEXPRS15            equ       *
                     lda       ,y
                     cmpa      #NUM
-                    bne       XEXPRS21
+                    bne       Fail@@
                     jsr       CKNUMOP
-                    bcs       XEXPRS17
+                    bcs       Operator@@
                     jsr       CKBOLOP
-                    bcs       XEXPRS17
+                    bcs       Operator@@
                     tst       IFWHFLAG
-                    beq       XEXPRS18
+                    beq       Null@@
                     jsr       CKLOGOP
-                    bra       XEXPRS17
+                    bra       Operator@@
 
-XEXPRS18            lda       #NULL
-                    bra       XEXPRS17
+Null@@              lda       #NULL
+                    bra       Operator@@
 
 ;  else { errcode=IDTYERR; return; }
 
-XEXPRS21            equ       *
-                    lda       #IDTYERR
+Fail@@              lda       #IDTYERR
                     jmp       RPTERR
 
 ;  if(c==NULL) { errcode=OPRTRERR; return; }
@@ -1734,18 +1726,17 @@ XEXPRS21            equ       *
 ; return;
 ; *}
 
-XEXPRS17            equ       *
-                    tsta
-                    bne       XEXPRS23
+Operator@@          tsta
+                    bne       Tokenize@@
                     lda       #OPRTRERR
                     jmp       RPTERR
 
-XEXPRS24            ins
+Done@@              ins
                     puly
                     rts
 
-XEXPRS23            jsr       PUTTOK
-                    jmp       XEXPRS29
+Tokenize@@          jsr       PUTTOK
+                    jmp       Loop@@
 
 ;*******************************************************************************
 ;***** cknumop() *****/
@@ -1818,6 +1809,8 @@ Loop@@              inx                           ; BUMP POINTER TO NEXT CHAR.
 Found@@             lda       1,x                 ; GET TOKEN.
                     sec                           ; FLAG AS FOUND.
                     rts                           ; RETURN.
+
+;*******************************************************************************
 
 NUMOPTBL            equ       *
 PLUS                fcs       '+'
@@ -1903,11 +1896,11 @@ Go@@                jsr       ToUpper
 
                     jsr       GETCHR
                     jsr       ALPHANUM
-                    bcc       GETVAR2
+                    bcc       CheckType@@
                     jsr       ToUpper
                     sta       1,y
                     jsr       INCIBP
-GETVAR2             jsr       CHCKTYP
+CheckType@@         jsr       CHCKTYP
                     sta       3,y
 
 ; if((offset=findvar(vartype,varname))==-1) is var already in table?
@@ -1919,7 +1912,7 @@ GETVAR2             jsr       CHCKTYP
 
                     jsr       FINDVAR
                     cpd       #-1
-                    bne       GETVAR5
+                    bne       SaveVar@@
                     lda       3,y
                     jsr       PUTVAR
 
@@ -1929,14 +1922,14 @@ GETVAR2             jsr       CHCKTYP
 ; return(STRING);
 ; *}
 
-GETVAR5             pshd
+SaveVar@@           pshd
                     lda       3,y
                     jsr       PUTTOK
                     puld
                     jsr       PUTDTOK
                     lda       3,y                 ; GET VARIABLE TYPE AGAIN.
                     bita      #$10                ; IS IT AN ARRAY VARIABLE?
-                    beq       GETVAR7             ; NO. CONTINUE.
+                    beq       Cont@@              ; NO. CONTINUE.
                     jsr       INCIBP              ; MOVE THE INPUT BUFFER POINTER PAST THE OPEN (.
                     lda       #OPARNTOK
                     jsr       PUTTOK
@@ -1944,13 +1937,13 @@ GETVAR5             pshd
                     jsr       XEXPRES             ; GO GET THE SUBSCRIPT.
                     jsr       GETNXCHR            ; GET THE TERMINATING CHARACTER.
                     cmpa      #')'                ; IS IT A CLOSING PAREN?
-                    beq       GETVAR8             ; YES. GO FINISH UP.
+                    beq       Finish@@            ; YES. GO FINISH UP.
                     lda       #MPARNERR           ; NO. ERROR.
                     jmp       RPTERR
 
-GETVAR8             lda       #CPARNTOK           ; GET CLOSING PAREN TOKEN.
+Finish@@            lda       #CPARNTOK           ; GET CLOSING PAREN TOKEN.
                     jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
-GETVAR7             lda       #NUM                ; NO. RETURN PROPER TYPE.
+Cont@@              lda       #NUM                ; NO. RETURN PROPER TYPE.
                     ldb       3,y
                     bitb      #2
                     beq       Done@@
@@ -2205,13 +2198,13 @@ GETDECI             proc
 
 Loop@@              lda       ,x
                     jsr       NUMERIC
-                    bcc       GETDECI3
+                    bcc       ?GETDECI
                     jsr       ADDDIG
                     bpl       Loop@@
                     lda       #INTOVERR
                     bra       CHCKERR
 
-GETDECI3            stx       IBUFPTR
+?GETDECI            stx       IBUFPTR
                     ldd       ,y
                     ins:2
                     puly
@@ -2237,7 +2230,7 @@ GETHEX              proc
                     ldx       IBUFPTR
                     lda       ,x
                     jsr       HEXDIG
-                    bcs       GETHEX1
+                    bcs       Loop@@
                     lda       #IVHEXERR
 CHCKERR             tst       RUNFLAG
                     jne       RPTRERR
@@ -2254,10 +2247,9 @@ CHCKERR             tst       RUNFLAG
 ; return(num);   return constant value
 ; *}
 
-GETHEX1             equ       *
-                    lda       ,x
+Loop@@              lda       ,x
                     jsr       HEXDIG
-                    bcc       GETDECI3
+                    bcc       ?GETDECI
                     ldd       ,y
                     lsld
                     bcs       Overflow@@
@@ -2274,12 +2266,12 @@ GETHEX1             equ       *
                     inx
                     subb      #'0'
                     cmpb      #9
-                    bls       GETHEX4
+                    bls       Cont@@
                     subb      #7
-GETHEX4             clra
+Cont@@              clra
                     addd      ,y
                     std       ,y
-                    bra       GETHEX1
+                    bra       Loop@@
 
 Overflow@@          lda       #HEXOVERR
                     bra       CHCKERR
@@ -2567,6 +2559,7 @@ UNUMFUN             proc
                     puly
                     rts
 
+;*******************************************************************************
 ;***** dofunct() *****/
 ;
 ; *dofunct(functok,nargs,type)
@@ -2582,7 +2575,7 @@ DOFUNCT             proc
                     jsr       GETCHR
                     cmpa      #'('
                     beq       LParen@@
-DOFUNCT5            lda       #MPARNERR
+Fail@@              lda       #MPARNERR
                     jmp       RPTERR
 
 LParen@@            jsr       INCIBP
@@ -2606,9 +2599,9 @@ Loop@@              lda       ,y
                     jsr       XEXPRES
                     pulb
                     decb
-                    beq       DOFUNCT3
+                    beq       RParen@@
                     jsr       CHKCOMA
-                    bcc       DOFUNCT5
+                    bcc       Fail@@
                     bra       Loop@@
 
 ; if(*ibufptr!=')')              must see closing paren
@@ -2624,9 +2617,9 @@ Loop@@              lda       ,y
 ; return;
 ; *}
 
-DOFUNCT3            jsr       GETCHR
+RParen@@            jsr       GETCHR
                     cmpa      #')'
-                    bne       DOFUNCT5
+                    bne       Fail@@
                     jsr       INCIBP
                     lda       #CPARNTOK
                     jmp       PUTTOK              ; PUT TOKEN IN BUFFER & RETURN.
@@ -2650,14 +2643,15 @@ CheckUpperLimit@@   cmpa      #'E'                ; IS IT HIGHER THAN AN "E"?
 ;*******************************************************************************
 
 XPACCF              proc
-XTIMEF              jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
+XTIMEF              proc
+                    jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
                     lda       #NUM                ; RETURN TYPE "NUM".
                     rts                           ; RETURN.
 ;                   include   'basiclb4.mod'
                     title     BASICLB4
                     page
-;
-;
+
+;*******************************************************************************
 ;***** xon *****/
 ;
 ; *xon()
@@ -2681,24 +2675,24 @@ XON                 proc
                     jsr       BLANKS
                     ldx       #GOTO
                     jsr       STREQ
-                    bcc       XON2
+                    bcc       Gosub?@@
                     lda       #GOTOTOK
                     jsr       PUTTOK
                     jsr       BLANKS
                     jsr       XGOTO
-                    bra       XON5
+                    bra       Loop@@
 
-XON2                ldx       #GOSUB
+Gosub?@@            ldx       #GOSUB
                     jsr       STREQ
-                    bcs       XON4
+                    bcs       Gosub@@
                     lda       #IONSYERR
                     jmp       RPTERR
 
-XON4                lda       #GOSUBTOK
+Gosub@@             lda       #GOSUBTOK
                     jsr       PUTTOK
                     jsr       BLANKS
                     jsr       XGOSUB
-XON5                jsr       BLANKS
+Loop@@              jsr       BLANKS
 
 ; while(*ibufptr==',')   do until EOL
 ; {
@@ -2715,15 +2709,15 @@ XON5                jsr       BLANKS
 ; return;
 ; *}
                     jsr       CHKCOMA
-                    bcs       XON6
+                    bcs       Comma@@
                     rts
 
-XON6                jsr       BLANKS
+Comma@@             jsr       BLANKS
                     lda       #LCONTOK
                     jsr       PUTTOK
                     jsr       GETLINUM
                     jsr       PUTDTOK
-                    bra       XON5
+                    bra       Loop@@
 
 ;*******************************************************************************
 
@@ -2734,7 +2728,7 @@ XONTIME             proc
                     jsr       BLANKS              ; SKIP BLANKS.
                     jsr       CHKCOMA             ; GO CHECK FOR A COMMA.
                     bcs       Go@@                ; IF PRESENT, IT'S OK.
-XONTIME2            lda       #MCOMAERR           ; IF NOT, REPORT AN ERROR.
+?XONTIME            lda       #MCOMAERR           ; IF NOT, REPORT AN ERROR.
                     jmp       RPTERR
 
 Go@@                jsr       BLANKS
@@ -2756,7 +2750,7 @@ GETARG              proc
                     jsr       XEXPRES
                     jsr       BLANKS              ; SKIP BLANKS.
                     jsr       CHKCOMA             ; GO CHECK FOR COMMA.
-                    bcc       XONTIME2            ; NO COMMA. REPORT ERROR.
+                    bcc       ?XONTIME            ; NO COMMA. REPORT ERROR.
                     jmp       BLANKS              ; SKIP BLANKS AFTER COMMA AND RETURN.
 
 ;*******************************************************************************
@@ -2777,7 +2771,7 @@ XIF                 proc
                     inc       IFWHFLAG
                     lda       #NUM
                     jsr       XEXPRES
-XIF1                jsr       BLANKS
+                    jsr       BLANKS
 
 ; if(match("THEN"))              check for "THEN" clause
 ; {
@@ -2786,7 +2780,7 @@ XIF1                jsr       BLANKS
 
                     ldx       #THENS
                     jsr       STREQ
-                    bcs       XIF2
+                    bcs       Then@@
                     lda       #MTHENERR
                     jmp       RPTERR
 
@@ -2805,18 +2799,17 @@ XIF1                jsr       BLANKS
 ;  }
 ; }
 
-XIF2                equ       *
-                    lda       #THENTOK
+Then@@              lda       #THENTOK
                     jsr       PUTTOK
                     jsr       BLANKS
                     jsr       GETCHR
                     jsr       NUMERIC
-                    bcc       XIF9
+                    bcc       Fail@@
 
-XIF3                lda       #LCONTOK
+                    lda       #LCONTOK
                     jsr       PUTTOK
                     jsr       GETLINUM
-XIF6                jsr       PUTDTOK
+                    jsr       PUTDTOK
 
 ; else                   if "THEN" not present
 ; {
@@ -2831,13 +2824,13 @@ XIF6                jsr       PUTDTOK
 ;  *tbufptr++=ELSETOK;           put ELSE token in the buffer
 ;  blanks();                     skip any blanks after ELSE
 
-XIF4                jsr       BLANKS
+                    jsr       BLANKS
                     ldx       #ELSES
                     jsr       STREQ
-                    bcs       XIF7
+                    bcs       ElseTok@@
                     rts
 
-XIF7                lda       #ELSETOK
+ElseTok@@           lda       #ELSETOK
                     jsr       PUTTOK
                     jsr       BLANKS
 
@@ -2856,14 +2849,14 @@ XIF7                lda       #ELSETOK
 ; }
                     jsr       GETCHR
                     jsr       NUMERIC
-                    bcs       XIF8
-XIF9                lda       #LINENERR
+                    bcs       Cont@@
+Fail@@              lda       #LINENERR
                     jmp       RPTERR
 
-XIF8                lda       #LCONTOK
+Cont@@              lda       #LCONTOK
                     jsr       PUTTOK
                     jsr       GETLINUM
-XIF10               jmp       PUTDTOK
+                    jmp       PUTDTOK
 
 ; return;                in any case, return
 ; *}
@@ -2887,13 +2880,13 @@ XFOR                proc
 ;                   jsr       BLANKS
                     jsr       GETVAR
                     cmpa      #NUM
-                    beq       XFOR1
-XFOR2               lda       #IVEXPERR
+                    beq       Go@@
+Fail@@              lda       #IVEXPERR
                     jmp       RPTERR
 
-XFOR1               jsr       GETNXCHR
+Go@@                jsr       GETNXCHR
                     cmpa      #'='
-                    bne       XFOR2
+                    bne       Fail@@
 
 ; *tbufptr++=EQUALTOK;   put equals token in buffer
 ; xexpres(NUM);          go get a numerical expression
@@ -2921,11 +2914,11 @@ XFOR1               jsr       GETNXCHR
 
                     ldx       #TO
                     jsr       STREQ
-                    bcs       XFOR4
+                    bcs       To@@
                     lda       #MTOERR
                     jmp       RPTERR
 
-XFOR4               lda       #TOTOK
+To@@                lda       #TOTOK
                     jsr       PUTTOK
                     jsr       BLANKS
                     lda       #NUM
@@ -2944,10 +2937,10 @@ XFOR4               lda       #TOTOK
                     jsr       BLANKS
                     ldx       #STEP
                     jsr       STREQ
-                    bcs       XFOR3
+                    bcs       Step@@
                     rts
 
-XFOR3               lda       #STEPTOK
+Step@@              lda       #STEPTOK
                     jsr       PUTTOK
                     jsr       BLANKS
                     lda       #NUM
@@ -2988,12 +2981,12 @@ XPRINT              proc
 ;                   jsr       BLANKS
                     jsr       GETCHR
                     cmpa      #'#'                ; HAS AN ALTERNATE PORT BEEN SPECIFIED?
-                    bne       XPRINT9             ; NO. GO PROCESS THE REST OF THE PRINT STATEMENT.
+                    bne       Loop@@              ; NO. GO PROCESS THE REST OF THE PRINT STATEMENT.
                     lda       #PNUMTOK            ; YES. PUT THE TOKEN INTO THE BUFFER.
                     jsr       PUTTOK              ; DO IT.
                     jsr       INCIBP              ; POINT PAST THE "#".
                     jsr       BLANKS              ; SKIP SPACES BETWEEN '#' AND EXPRESION.
-                    bra       XPRINT7             ; GO GET EXPRESSION & CONTINUE.
+                    bra       Expr@@              ; GO GET EXPRESSION & CONTINUE.
 
 ; while((*ibufptr!=EOL)|(*ibufptr!=MIDEOL))    do until end of line
 ; {
@@ -3010,38 +3003,38 @@ XPRINT              proc
 ; return;
 ; *}
 
-XPRINT9             jsr       BLANKS
+Loop@@              jsr       BLANKS
                     jsr       GETCHR
                     cmpa      #EOL
-                    beq       XPRINT2
+                    beq       Done@@
                     cmpa      #MIDEOL
-                    bne       XPRINT3
-XPRINT2             rts
+                    bne       GetChar@@
+Done@@              rts
 
-XPRINT3             jsr       GETCHR              ; GET THE NEXT CHARACTER IN THE BUFFER.
+GetChar@@           jsr       GETCHR              ; GET THE NEXT CHARACTER IN THE BUFFER.
                     cmpa      #'"'                ; IS IT A STRING CONSTANT?
-                    bne       XPRINT7
+                    bne       Expr@@
                     jsr       GETSCON             ; YES. GO GET A STRING CONSTANT.
-                    bra       XPRINT8             ; CONTINUE.
+                    bra       Cont@@              ; CONTINUE.
 
-XPRINT7             lda       #NUM
+Expr@@              lda       #NUM
                     jsr       XEXPRES
-XPRINT8             jsr       BLANKS
+Cont@@              jsr       BLANKS
                     jsr       GETCHR
                     cmpa      #EOL
-                    beq       XPRINT2
+                    beq       Done@@
                     cmpa      #MIDEOL
-                    beq       XPRINT2
+                    beq       Done@@
                     bsr       CHKCOMA
-                    bcs       XPRINT9
-XPRINT4             cmpa      #SEMI
-                    beq       XPRINT6
+                    bcs       Loop@@
+                    cmpa      #SEMI
+                    beq       Semicolon@@
                     lda       #MCMSMERR
                     jmp       RPTERR
 
-XPRINT6             lda       #SEMITOK
-                    bsr       CHKCOMA2
-                    bra       XPRINT9
+Semicolon@@         lda       #SEMITOK
+                    bsr       ?CHKCOMA
+                    bra       Loop@@
 
 ;*******************************************************************************
 
@@ -3053,7 +3046,7 @@ CHKCOMA             proc
                     rts                           ; RETURN.
 
 Go@@                lda       #COMMATOK           ; GET THE COMMA TOKEN.
-CHKCOMA2            jsr       PUTTOK              ; PUT THE TOKEN IN THE BUFFER.
+?CHKCOMA            jsr       PUTTOK              ; PUT THE TOKEN IN THE BUFFER.
                     jsr       INCIBP              ; BUMP THE INPUT BUFFER POINTER.
                     sec
                     rts                           ; RETURN.
@@ -3082,14 +3075,14 @@ XINPUT              proc
 ; return;
 ; *}
 
-XINPUT2             jsr       BLANKS
+                    jsr       BLANKS
                     jsr       GETCHR
                     cmpa      #'"'
                     bne       INREADCM
                     jsr       GETSCON
                     bsr       CHKCOMA             ; IF COMMA PRESENT, PUT IN TOKEN BUFFER.
                     bcs       INREADCM
-XINPUT3             lda       #MCOMAERR
+?XINPUT             lda       #MCOMAERR
                     jmp       RPTERR
 
 ;*******************************************************************************
@@ -3138,7 +3131,7 @@ Go@@                lda       #PNUMTOK            ; YES. PUT THE TOKEN INTO THE 
                     jsr       XEXPRES             ; GO GET THE EXPRESSION.
                     jsr       BLANKS              ; SKIP SPACES.
                     bsr       CHKCOMA             ; GO GET COMMA THAT MUST FOLLOW THE EXPRESSION.
-                    bcc       XINPUT3             ; MISSING COMMA. GO REPORT THE ERROR.
+                    bcc       ?XINPUT             ; MISSING COMMA. GO REPORT THE ERROR.
                     rts                           ; IT WAS THERE. GO PROCESS THE REST OF THE STATEMENT.
 
 ;*******************************************************************************
@@ -3270,7 +3263,7 @@ RPTRERR             proc                          ; REPORT A RUN TIME ERROR.
                     jsr       NL
                     lda       #1
                     sta       CONTFLAG
-                    jmp       MAINW
+                    jmp       MainLoop
 
 BREAKS              fcc       'BREAK'
 INLINE              fcs       ' IN LINE # '
@@ -3459,13 +3452,13 @@ DELLINE             proc
                     pshd                          ; SAVE THE LINE NUMBER TO DELETE.
                     tsy                           ; POINT TO THE LINE NUMBER WE SAVED.
                     cpd       HILINE              ; IS IT HIGHER THAN THE HIGHEST LINE ENTERED SO FAR?
-                    bls       DELLINE1            ; NO. GO SEE IF THE LINE EXISTS.
-DELLINE2            lda       #1                  ; YES. THE LINE CANNOT EXIST.
+                    bls       Go@@                ; NO. GO SEE IF THE LINE EXISTS.
+Done@@              lda       #1                  ; YES. THE LINE CANNOT EXIST.
                     sta       CONTFLAG
                     puld                          ; PULL THE LINE NUMBER OFF THE STACK.
                     rts                           ; RETURN.
 
-DELLINE1            bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
+Go@@                bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
 ; RETURN A POINTER TO A LINE NUMBER IN THE BASIC PROGRAM BUFFER.
 
 ; if(*linum!=num) return;        if the line # doesn't exist, return
@@ -3476,16 +3469,17 @@ DELLINE1            bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
 ; *}
                     ldd       ,x                  ; GET THE LINE NUMBER THAT WAS FOUND.
                     cpd       ,y                  ; WAS THE LINE NUMBER FOUND THE ONE THAT WAS REQUESTED TO BE DELETED.
-                    bne       DELLINE2            ; NO. THE LINE DOESN'T EXIST. JUST RETURN.
+                    bne       Done@@              ; NO. THE LINE DOESN'T EXIST. JUST RETURN.
                     ldb       2,x                 ; YES. GET THE LENGTH OF THE LINE.
                     bsr       CLOSESPC            ; GO CLOSE THE SPACE IN THE PROGRAM BUFFER.
                     ldd       HILINE              ; GET THE HIGHEST LINE NUMBER ENTERED.
                     cpd       ,y                  ; DID WE DELETE THE HIGHEST LINE NUMBER?
-                    bne       DELLINE2            ; NO. JUST RETURN.
+                    bne       Done@@              ; NO. JUST RETURN.
                     bsr       FINDHILN            ; YES. GO FIND THE HIGHEST LINE NUMBER.
                     std       HILINE              ; SAVE IT.
-                    bra       DELLINE2            ; RETURN.
+                    bra       Done@@              ; RETURN.
 
+;*******************************************************************************
 ;***** closespc() *****/        close up space in the BASIC buffer
 ;
 ; *closespc(bytes,ptr)
@@ -3546,6 +3540,7 @@ Loop@@              cpd       ,x
                     bra       Loop@@
 Done@@              rts
 
+;*******************************************************************************
 ;***** findhiln() *****
 ;
 ; *findhiln()                      find highest line number in basic buffer **{
@@ -3574,6 +3569,7 @@ Loop@@              cpx       BASEND
                     bra       Loop@@
 Done@@              rts
 
+;*******************************************************************************
 ;***** insrtlin() *****/
 ;
 ; *insrtlin(ptr)
@@ -3595,6 +3591,7 @@ INSRTLIN            proc
                     pulx
                     bra       PUTLINE
 
+;*******************************************************************************
 ;***** openspc() *****/         open space in program buffer
 ;
 ; *openspc(bytes,ptr)
@@ -3824,6 +3821,7 @@ DecCount            proc
 ;                   include   'inits.mod'
                     title     Inits
 
+;*******************************************************************************
 ;***** initvars() *****/
 ;
 ; *initvars()
@@ -4002,7 +4000,7 @@ TIMINTS3            proc
                     bne       Done@@              ; NO. JUST RETURN.
                     ldy       ONTIMLIN            ; MAKE THE POINTER TO THE LINE NUMBER THE NEW IP.
                     ins:2                         ; GET RID OF THE RETURN ADDRESS.
-TIMINTS2            inc       IMMED               ; FAKE THE GOTO ROUTINE OUT.
+?TIMINTS            inc       IMMED               ; FAKE THE GOTO ROUTINE OUT.
                     ldd       CURLINE             ; SAVE THE CURRENT LINE NUMBER IN MAIN PROGRAM.
                     std       SCURLINE
                     ldd       ADRNXLIN            ; SAVE THE ADDRESS OF THE NEXT LINE IN MAIN PROG.
@@ -4014,7 +4012,7 @@ Done@@              rts                           ; RETURN.
 
 IRQINT              proc
                     ldy       ONIRQLIN            ; GET POINTER TO LINE NUMBER OF THE IRQ SERVICE.
-                    bne       TIMINTS2            ; GO DO IT.
+                    bne       ?TIMINTS            ; GO DO IT.
                     rti                           ; IF IT'S 0, "ONIRQ" HAS NOT BEEN EXECUTED.
 
 ;*******************************************************************************
@@ -4024,7 +4022,7 @@ PACCINT             proc
                     lda       #$30                ; RESET BOTH THE TIMER OVERFLOW & INPUT FLAG.
                     sta       TFLG2,x
                     ldy       ONPACLIN            ; GET POINTER TO LINE NUMBER OF THE SERVICE ROUT.
-                    bne       TIMINTS2
+                    bne       ?TIMINTS
                     rti
 
 ;                   include   'command1.mod'
@@ -4147,26 +4145,26 @@ Go@@                jsr       SKIPSPCS
                     std       FIRSTLIN
                     jsr       GETCHR
                     cmpa      #'-'
-                    beq       CLIST3
+                    beq       Range@@
                     ldd       FIRSTLIN
                     std       LASTLIN
                     cpd       HILINE
                     bls       CLIST4
                     rts
 
-CLIST3              jsr       INCIBP
+Range@@             jsr       INCIBP
                     jsr       GETLINUM
                     cpd       HILINE
-                    bls       CLIST13
+                    bls       SaveLastLine@@
                     ldd       HILINE
-CLIST13             std       LASTLIN
+SaveLastLine@@      std       LASTLIN
                     bra       CLIST4
 
 CLIST2              cmpa      #EOL
-                    beq       CLIST14
+                    beq       Process@@
                     rts
 
-CLIST14             ldx       BASBEG
+Process@@           ldx       BASBEG
                     ldd       ,x
                     std       FIRSTLIN
                     ldd       HILINE
@@ -4321,7 +4319,7 @@ Done@@              rts
 LFCON               proc
                     ldd       TOKPTR
                     addd      #FSIZ+1
-LFCON2              xgdx
+?LFCON              xgdx
                     ldb       ,x
                     inx
 Loop@@              lda       ,x
@@ -4350,7 +4348,7 @@ Loop@@              lda       ,x
 LICON               proc
                     ldd       TOKPTR
                     addd      #ISIZ+1
-                    bra       LFCON2
+                    bra       ?LFCON
 
 ;*******************************************************************************
 ;***** lscon() *****/
@@ -4370,7 +4368,7 @@ LICON               proc
 LSCON               proc
                     ldd       TOKPTR
                     incd
-                    bra       LFCON2
+                    bra       ?LFCON
 
 ;*******************************************************************************
 ;***** llcon *****/
@@ -4407,36 +4405,36 @@ LKEYWORD            proc
                     inx
                     stx       TOKPTR
                     cmpa      #MSCNTOK
-                    bne       LKEYWRD3
+                    bne       _1@@
                     jmp       LMSPCS
 
-LKEYWRD3            cmpa      #REMTOK
-                    bne       LKEYWRD4
+_1@@                cmpa      #REMTOK
+                    bne       _2@@
                     jmp       LREMLINE
 
-LKEYWRD4            cmpa      #DATATOK
-                    bne       LKEYWRD5
+_2@@                cmpa      #DATATOK
+                    bne       _3@@
                     jmp       LDATALIN
 
-LKEYWRD5            cmpa      #FUNCTFLG
-                    bne       LKEYWRD6
+_3@@                cmpa      #FUNCTFLG
+                    bne       _4@@
                     ldx       TOKPTR
                     lda       ,x
                     inx
                     stx       TOKPTR
                     ldx       #LFUNCTBL
-                    bra       LKEYWRD1
+                    bra       Loop@@
 
-LKEYWRD6            ldx       #TOKTBL
-LKEYWRD1            cmpa      ,x
-                    beq       LKEYWRD2
+_4@@                ldx       #TOKTBL
+Loop@@              cmpa      ,x
+                    beq       Done@@
                     inx:3
                     tst       ,x
-                    bne       LKEYWRD1
+                    bne       Loop@@
                     lda       #ILTOKERR
                     jmp       RPTERR
 
-LKEYWRD2            ldx       1,x
+Done@@              ldx       1,x
                     jmp       PL
 
 ;*******************************************************************************
@@ -4457,14 +4455,14 @@ Loop@@              jsr       OUTBYTE
 LDATALIN            proc
                     ldx       #DATA
                     jsr       PL
-                    bra       LREM3
+                    bra       ?LREM
 
 ;*******************************************************************************
 
 LREMLINE            proc
                     ldx       #REM
                     jsr       PL
-LREM3               ldx       TOKPTR
+?LREM               ldx       TOKPTR
                     inx                           ; PUT POINTER PAST LENGTH BYTE.
 Loop@@              lda       ,x
                     cmpa      #EOL
@@ -4671,7 +4669,7 @@ CRUN                proc
 Go@@                ldd       ,y                  ; GET NUMBER OF FIRST/NEXT LINE OF BASIC PROGRAM.
                     std       CURLINE             ; MAKE IT THE CURRENT LINE.
                     tst       TRFLAG              ; IS THE TRACE MODE TURNED ON?
-                    beq       CRUN6               ; NO. CONTINUE.
+                    beq       Skip@@              ; NO. CONTINUE.
                     lda       #'['                ; YES. PRINT THE CURRENT LINE.
                     jsr       OUTBYTE
                     ldd       CURLINE
@@ -4679,7 +4677,7 @@ Go@@                ldd       ,y                  ; GET NUMBER OF FIRST/NEXT LIN
                     lda       #']'
                     jsr       OUTBYTE
                     jsr       NL
-CRUN6               pshy                          ; SAVE POINTER TO START OF NEW LINE.
+Skip@@              pshy                          ; SAVE POINTER TO START OF NEW LINE.
                     ldb       2,y                 ; GET LENGTH OF LINE.
                     aby                           ; POINT TO START OF NEXT LINE.
                     sty       ADRNXLIN            ; SAVE THE ADDRESS OF THE NEXT LINE.
@@ -4804,28 +4802,28 @@ CHCKBRK             proc
                     lda       #10                 ; RELOAD THE BREAK CHECK COUNT.
                     sta       BREAKCNT
                     jsr       CONSTAT             ; GET CONSOLE STATUS. CHARACTER TYPED?
-                    bne       CHCKBRK1            ; YES. GO CHECK IT OUT.
+                    bne       Go@@                ; YES. GO CHECK IT OUT.
                     rts                           ; NO. RETURN.
 
-CHCKBRK1            jsr       INCONNE             ; GET BYTE FROM CONSOLE BUT DON'T ECHO.
+Go@@                jsr       INCONNE             ; GET BYTE FROM CONSOLE BUT DON'T ECHO.
                     cmpa      #$03                ; WAS IT A CONTROL-C?
-                    beq       CHCKBRK2            ; YES. GO DO A BREAK.
+                    beq       ?DoBreak            ; YES. GO DO A BREAK.
                     rts                           ; NO. RETURN.
 
-CHCKBRK2            sty       IPSAVE              ; SAVE THE IP POINTER IN CASE OF A CONTINUE.
+?DoBreak            sty       IPSAVE              ; SAVE THE IP POINTER IN CASE OF A CONTINUE.
                     jsr       NL
                     ldx       #BREAKS             ; POINT TO BREAK STRING.
                     jsr       PL
                     ldd       CURLINE
                     jsr       OUTDECI
                     jsr       NL
-                    jmp       MAINW
+                    jmp       MainLoop
 
 ;*******************************************************************************
 
 RUNINIT             proc
                     jsr       CCLEAR              ; GO CLEAR ALL VARIABLE STORAGE.
-RUNINIT1            ldx       STNUMS              ; GET START OF NUMERIC OPERAND STACK.
+?RUNINIT            ldx       STNUMS              ; GET START OF NUMERIC OPERAND STACK.
                     stx       NUMSTACK            ; INITALIZE THE OPERAND STACK POINTER.
                     ldx       STOPS               ; GET THE START OF THE OPERATOR STACK.
                     stx       OPSTACK             ; INITALIZE THE OPREATOR STACK POINTER.
@@ -4875,8 +4873,13 @@ Init@@              jsr       INITVARS            ; INITIALIZE EVERYTHING.
 ;*******************************************************************************
 
 CCLEAR              proc
-                    jsr       RUNINIT1            ; GO INITALIZE ALL STACKS ETC.
-CCLEAR3             ldx       VARBEGIN
+                    jsr       ?RUNINIT            ; GO INITALIZE ALL STACKS ETC.
+;                   bra       CCLEAR3
+
+;*******************************************************************************
+
+CCLEAR3             proc
+                    ldx       VARBEGIN
 Loop@@              lda       ,x
                     beq       Done@@
                     inx:3
@@ -4897,21 +4900,21 @@ Done@@              ldx       VAREND
 CESAVE              proc
                     ldd       BASBEG              ; GET POINTER TO THE START OF THE BASIC PROGRAM.
                     cpd       BASEND              ; IS THERE A PROGRAM IN MEMORY?
-                    bne       CESAVE1             ; YES. GO SAVE IT.
+                    bne       Go@@                ; YES. GO SAVE IT.
                     rts                           ; NO. RETURN.
 
-CESAVE1             ldd       VAREND
+Go@@                ldd       VAREND
                     subd      BASBEG
                     cpd       EESize
-                    bls       CESAVE5
+                    bls       Load@@
                     lda       #EETOSMAL
                     jmp       RPTERR
 
-CESAVE5             ldx       EEStart             ; point to the start of the EEPROM.
+Load@@              ldx       EEStart             ; point to the start of the EEPROM.
                     ldy       #BASBEG
                     ldb       #4
                     stb       COUNT
-CESAVE3             ldd       ,y
+Loop@@              ldd       ,y
                     subd      RAMStart
                     sta       ,x
                     jsr       DLY10MS
@@ -4922,7 +4925,7 @@ CESAVE3             ldd       ,y
                     inx
                     iny:2
                     dec       COUNT
-                    bne       CESAVE3
+                    bne       Loop@@
 
                     ldd       ,y
                     sta       ,x
@@ -4934,13 +4937,13 @@ CESAVE3             ldd       ,y
 
                     ldx       EEStart
                     ldy       BASBEG
-CESAVE4             lda       ,y
+Save@@              lda       ,y
                     sta       SSTART,x
                     jsr       DLY10MS
                     inx
                     iny
                     cpy       VAREND
-                    bls       CESAVE4
+                    bls       Save@@
                     rts                           ; RETURN.
 
 ;*******************************************************************************
@@ -4965,12 +4968,12 @@ Loop@@              ldd       ,x                  ; get the offset that was save
 
                     ldx       EEStart             ; point to the start of the EEPROM
                     ldy       BASBEG              ; point to the start of the BASIC program buffer.
-CELOAD4             lda       SSTART,x            ; get a byte of the program.
+?CELOAD             lda       SSTART,x            ; get a byte of the program.
                     sta       ,y                  ; put it in the program buffer.
                     inx                           ; point to the next program byte
                     iny                           ; point to the next buffer location.
                     cpy       VAREND              ; have we finished loading the program.
-                    bls       CELOAD4             ; no. keep loading.
+                    bls       ?CELOAD             ; no. keep loading.
                     sty       STRASTG             ; yes. initialize the array storage area.
                     rts                           ; RETURN.
 
@@ -5020,7 +5023,7 @@ AUTOLOAD            proc
                     ldd       EEStart
                     addd      SVARBEG,x
                     xgdx
-                    bra       CELOAD4
+                    bra       ?CELOAD
 
 ;*******************************************************************************
 
@@ -5128,12 +5131,15 @@ RLET                proc
                     std       ,x                  ; STORE VALUE.
                     rts                           ; BACK TO MAIN INTERPRET LOOP.
 
-RVARPTR             lda       ,y                  ; GET VARIABLE FLAG.
+;*******************************************************************************
+
+RVARPTR             proc
+                    lda       ,y                  ; GET VARIABLE FLAG.
                     bita      #$02                ; IS IT A STRING VARIABLE?
-                    bne       RVARPTR2            ; YES. GO GET POINTER FOR A STRING DESCRIPTOR.
+                    bne       StringPtr@@         ; YES. GO GET POINTER FOR A STRING DESCRIPTOR.
                     bita      #$10                ; IS IT A NUMERIC ARRAY VARIABLE?
-                    bne       RVARPTR1            ; YES. GO CALCULATE THE SUBSCRIPT.
-RVARPTR3            ldd       1,y                 ; GET THE OFFSET TO THE DICTIONARY ENTRY.
+                    bne       Subscript@@         ; YES. GO CALCULATE THE SUBSCRIPT.
+DictOffset@@        ldd       1,y                 ; GET THE OFFSET TO THE DICTIONARY ENTRY.
                     addd      VARBEGIN            ; ADD IN THE START ADDRESS OF THE DCTIONARY.
                     addd      #3                  ; MAKE POINTER POINT TO THE ACTUAL STORAGE LOCATION
                     pshb                          ; SAVE B.
@@ -5142,18 +5148,16 @@ RVARPTR3            ldd       1,y                 ; GET THE OFFSET TO THE DICTIO
                     pulb                          ; RESTORE B.
                     rts
 
-RVARPTR1            equ       *
-                    jsr       CALCSUB             ; GO GET BASE ADDR & EVALUATE SUBSCRIPT EXPRESSION.
+Subscript@@         jsr       CALCSUB             ; GO GET BASE ADDR & EVALUATE SUBSCRIPT EXPRESSION.
                     pshx                          ; PUSH BASE ADDRESS ONTO STACK.
                     tsx                           ; POINT TO IT.
                     lsld                          ; MULT THE SUBSCRIPT BY THE # OF BYTES/ELEMENT.
-RVARPTR4            addd      ,x                  ; GET ADDRESS OF ELEMENT.
+GetAddr@@           addd      ,x                  ; GET ADDRESS OF ELEMENT.
                     pulx                          ; RESTORE X.
                     rts                           ; RETURN.
 
-RVARPTR2            equ       *
-                    bita      #$10                ; IS IT A STRING ARRAY?
-                    beq       RVARPTR3            ; NO. JUST GO GET POINTER TO DESCRIPTOR.
+StringPtr@@         bita      #$10                ; IS IT A STRING ARRAY?
+                    beq       DictOffset@@        ; NO. JUST GO GET POINTER TO DESCRIPTOR.
                     jsr       CALCSUB             ; GET BASE ADDR. & CALC SUBSCRIPT.
                     pshx                          ; SAVE THE BASE ADDRESS.
                     pshd                          ; SAVE THE SUBSCRIPT VALUE.
@@ -5162,68 +5166,68 @@ RVARPTR2            equ       *
                     addd      ,x                  ; MULT BY 3.
                     ins:2                         ; GET RID OF SUBSCRIPT VALUE.
                     tsx                           ; POINT TO BASE ADDRESS.
-                    bra       RVARPTR4
+                    bra       GetAddr@@
 
 ;*******************************************************************************
 
 RGOTO               proc
                     tst       IMMED               ; DID WE ENTER HERE FROM THE IMMEDIATE MODE?
-                    beq       RGOTO7              ; NO. JUST GO DO A GOTO.
+                    beq       Go@@                ; NO. JUST GO DO A GOTO.
                     ldd       BASEND              ; YES. SET ADRNXLIN TO END OF PROGRAM SO THE
                     std       ADRNXLIN            ; SEARCH STARTS AT THE FIRST LINE.
-RGOTO7              ldx       ADRNXLIN            ; POINT TO THE START OF THE NEXT LINE.
+Go@@                ldx       ADRNXLIN            ; POINT TO THE START OF THE NEXT LINE.
                     cpx       BASEND              ; IS THIS THE LAST LINE OF THE PROGRAM?
-                    bne       RGOTO1              ; NO. SEARCH STARTING AT THE NEXT LINE.
+                    bne       SearchNextLine@@    ; NO. SEARCH STARTING AT THE NEXT LINE.
 RGOTO3              ldx       BASBEG              ; YES. POINT TO THE START OF THE BASIC PROGRAM.
-                    bra       RGOTO2
+                    bra       Loop@@
 
-RGOTO1              ldd       ,x                  ; GET THE NEXT LINE NUMBER IN THE PGM.
+SearchNextLine@@    ldd       ,x                  ; GET THE NEXT LINE NUMBER IN THE PGM.
                     cpd       1,y                 ; IS IT > THE LINE NUMBER WE ARE TO "GOTO"?
                     bhi       RGOTO3              ; YES. START THE SEARCH AT THE BEGINING.
-RGOTO2              ldd       ,x                  ; GET THE NEXT LINE NUMBER INTO D.
+Loop@@              ldd       ,x                  ; GET THE NEXT LINE NUMBER INTO D.
                     cpd       1,y                 ; IS THIS THE CORRECT LINE?
-                    beq       RGOTO4              ; YES. "GOTO" THE NEW LINE.
-                    blo       RGOTO5              ; NO. IS IT LESS THAN THE "TARGET LINE"?
-RGOTO6              lda       #LNFERR             ; NO. THE LINE MUST NOT EXIST.
+                    beq       NewLine@@           ; YES. "GOTO" THE NEW LINE.
+                    blo       GetLen@@            ; NO. IS IT LESS THAN THE "TARGET LINE"?
+Fail@@              lda       #LNFERR             ; NO. THE LINE MUST NOT EXIST.
                     jmp       RPTRERR             ; REPORT THE ERROR & RETURN TO MAIN LOOP.
 
-RGOTO5              ldb       2,x                 ; GET THE LENGTH OF THIS LINE.
+GetLen@@            ldb       2,x                 ; GET THE LENGTH OF THIS LINE.
                     abx                           ; POINT TO THE START OF THE NEXT LINE.
                     cpx       BASEND              ; DID WE HIT THE END OF THE PROGRAM?
-                    beq       RGOTO6              ; YES. THE LINE DOESN'T EXIST.
-                    bra       RGOTO2              ; NO. GO SEE IF THIS IS THE CORRECT LINE.
+                    beq       Fail@@              ; YES. THE LINE DOESN'T EXIST.
+                    bra       Loop@@              ; NO. GO SEE IF THIS IS THE CORRECT LINE.
 
-RGOTO4              xgdx                          ; MAKE IT THE NEW IP.
+NewLine@@           xgdx                          ; MAKE IT THE NEW IP.
                     xgdy
                     tst       IMMED
                     beq       RGOTO8
                     clr       IMMED
-RGOTO9              jmp       CRUN1
+Run@@               jmp       CRUN1
 
 RGOTO8              ins:2
-                    bra       RGOTO9
+                    bra       Run@@
 
 ;*******************************************************************************
 
 RGOSUB              proc
                     pshy                          ; SAVE THE I.P. TO THE LINE NUMBER.
                     tst       IMMED               ; DID WE GET HERE FROM THE IMMEDIATE MODE?
-                    beq       RGOSUB3             ; NO. GO DO A NORMAL GOSUB.
+                    beq       Go@@                ; NO. GO DO A NORMAL GOSUB.
                     ldy       BASEND              ; YES. MAKE RETURN POINT TO THE LAST EOL TOKEN
                     dey                           ; IN THE PROGRAM.
-                    bra       RGOSUB2             ; GO PUT IT ON THE ARGUMENT STACK.
+                    bra       ?RGOSUB             ; GO PUT IT ON THE ARGUMENT STACK.
 
-RGOSUB3             ldb       #3                  ; BYPASS THE LINE NUMBER.
+Go@@                ldb       #3                  ; BYPASS THE LINE NUMBER.
                     aby
-RGOSUB2             jsr       RSKIPSPC            ; SKIP SPACES AFTER THE LINE NUMBER.
+?RGOSUB             jsr       RSKIPSPC            ; SKIP SPACES AFTER THE LINE NUMBER.
                     ldx       GOSTACK             ; GET THE GOSUB STACK POINTER.
                     dex:2                         ; POINT TO THE NEXT ENTRY ON THE STACK.
                     cpx       EGOSTK              ; OUT OF STACK SPACE?
-                    bhs       RGOSUB1             ; NO. GO PUSH THE "RETURN ADDRESS" ON THE STACK.
+                    bhs       Done@@              ; NO. GO PUSH THE "RETURN ADDRESS" ON THE STACK.
                     lda       #GOSOVERR           ; YES. GET THE ERRCODE.
                     jmp       RPTRERR             ; GO REPORT THE ERROR.
 
-RGOSUB1             stx       GOSTACK             ; SAVE THE "GOSUB" STACK POINTER.
+Done@@              stx       GOSTACK             ; SAVE THE "GOSUB" STACK POINTER.
                     sty       ,x                  ; PUT THE RETURN ADDRESS ON THE STACK.
                     puly                          ; GET THE POINTER TO THE LINE NUMBER.
                     jmp       RGOTO               ; GO DO A "GOTO".
@@ -5250,7 +5254,7 @@ RSTOP               proc
                     ldd       CURLINE
                     jsr       OUTDECI
                     sty       IPSAVE
-                    bra       REND1
+                    bra       ?REND
 
 ;*******************************************************************************
 
@@ -5258,9 +5262,9 @@ REND                proc
                     jsr       NL
                     lda       #1
                     sta       CONTFLAG
-REND1               ldd       #0
+?REND               ldd       #0
                     std       CURLINE
-                    jmp       MAINW
+                    jmp       MainLoop
 
 STOPSTR             fcs       LF,CR,'STOPPED AT LINE # '
 
@@ -5344,45 +5348,45 @@ RON                 proc
                     jsr       RSKIPSPC            ; SKIP SPACES.
                     ldx       NUMSTACK            ; POINT TO THE OPERAND STACK.
                     ldd       ,x                  ; GET EXPRESSION VALUE.
-                    bpl       RON1                ; IS IT NEGATIVE?
-                    bne       RON1                ; OR ZERO?
-RON5                lda       #ONARGERR           ; YES. REPORT ERROR.
+                    bpl       Go@@                ; IS IT NEGATIVE?
+                    bne       Go@@                ; OR ZERO?
+Fail@@              lda       #ONARGERR           ; YES. REPORT ERROR.
                     jmp       RPTRERR
 
-RON1                ldd       ,x                  ; GET THE EXPRESSION VALUE.
-                    subd      #1                  ; SUBTRACT 1. HAVE WE FOUND THE LINE NUMBER?
-                    beq       RON4                ; YES. GO DO "GOTO" OR "GOSUB".
+Go@@                ldd       ,x                  ; GET THE EXPRESSION VALUE.
+                    decd                          ; SUBTRACT 1. HAVE WE FOUND THE LINE NUMBER?
+                    beq       Exec@@              ; YES. GO DO "GOTO" OR "GOSUB".
                     std       ,x                  ; NO. SAVE REMAINDER.
                     ldb       #3                  ; POINT PAST THE LINE NUMBER VALUE.
                     aby
                     jsr       RSKIPSPC            ; SKIP SPACES PAST THE LINE NUMBER.
                     lda       ,y                  ; GET NEXT TOKEN.
                     cmpa      #EOLTOK             ; HAVE WE HIT THE END OF THE LINE?
-                    beq       RON5                ; YES. ERROR.
-RON3                iny                           ; NO. MUST BE A COMMA. BYPASS IT.
+                    beq       Fail@@              ; YES. ERROR.
+                    iny                           ; NO. MUST BE A COMMA. BYPASS IT.
                     jsr       RSKIPSPC            ; SKIP SPACES AFTER THE COMMA.
-                    bra       RON1                ; GO SEE IF THE NEXT LINE NUMBER IS THE ONE.
+                    bra       Go@@                ; GO SEE IF THE NEXT LINE NUMBER IS THE ONE.
 
-RON4                jsr       PULNUM              ; GET RID OF ARGUMENT.
+Exec@@              jsr       PULNUM              ; GET RID OF ARGUMENT.
                     pula                          ; GET "GO" TOKEN.
                     cmpa      #GOTOTOK            ; IS IT A "GOTO" TOKEN?
-                    bne       RON6                ; NO. MUST BE A "GOSUB"
+                    bne       DoGosub@@           ; NO. MUST BE A "GOSUB"
                     jmp       RGOTO               ; GO DO A "GOTO".
 
-RON6                pshy                          ; SAVE THE POINTER TO THE LINE NUMBER.
-RON8                ldb       #3                  ; POINT PAST THE LINE NUMBER.
+DoGosub@@           pshy                          ; SAVE THE POINTER TO THE LINE NUMBER.
+ToEol@@             ldb       #3                  ; POINT PAST THE LINE NUMBER.
                     aby
                     jsr       RSKIPSPC            ; SKIP SPACES AFTER LINE NUMBER.
                     lda       ,y                  ; GET NEXT TERMINATOR CHARACTER.
                     cmpa      #EOLTOK             ; HIT THE END OF THE LINE YET?
-                    beq       RON7                ; YES. GO DO THE GOSUB.
+                    beq       Gosub@@             ; YES. GO DO THE GOSUB.
                     cmpa      #MEOLTOK            ; NO. HIT THE LOGICAL END OF THE LINE YET?
-                    beq       RON7                ; YES. GO DO THE GOSUB.
+                    beq       Gosub@@             ; YES. GO DO THE GOSUB.
                     iny                           ; NO. MUST BE A COMMA.
                     jsr       RSKIPSPC            ; SKIP SPACES AFTER THE COMMA.
-                    bra       RON8                ; GO FIND THE END OF THE LINE.
+                    bra       ToEol@@             ; GO FIND THE END OF THE LINE.
 
-RON7                jmp       RGOSUB2             ; GO DO A "GOSUB".
+Gosub@@             jmp       ?RGOSUB             ; GO DO A "GOSUB".
 
 ;*******************************************************************************
 
@@ -5406,7 +5410,7 @@ RPOKE               proc
 
 RPORTA              proc
                     ldb       #PORTAIO
-RPORTA1             ldx       IOBaseV             ; GET ADDRESS OF PORTA I/O REGISTER.
+?RPORT              ldx       IOBaseV             ; GET ADDRESS OF PORTA I/O REGISTER.
                     abx
                     pshx                          ; SAVE POINTER TO VARIABLE.
                     iny                           ; PUT IP PAST THE "=" TOKEN.
@@ -5425,19 +5429,19 @@ Done@@              pulx                          ; POINT TO THE DICTIONARY ENTR
 
 RPORTB              proc
                     ldb       #PORTBIO            ; GET ADDRESS OF PORTB I/O REGISTER.
-                    bra       RPORTA1             ; GO DO AN ASIGNMENT.
+                    bra       ?RPORT              ; GO DO AN ASIGNMENT.
 
 ;*******************************************************************************
 
 RPORTC              proc
                     ldb       #PORTCIO            ; GET ADDRESS OF PORTC I/O REGISTER.
-                    bra       RPORTA1             ; GO DO AN ASIGNMENT.
+                    bra       ?RPORT              ; GO DO AN ASIGNMENT.
 
 ;*******************************************************************************
 
 RPORTD              proc
                     ldb       #PORTDIO            ; GET ADDRESS OF PORTD I/O REGISTER.
-                    bra       RPORTA1             ; GO DO AN ASIGNMENT.
+                    bra       ?RPORT              ; GO DO AN ASIGNMENT.
 ;                   include   'runtime2.mod'
                     title     RUNTIME2
                     page
@@ -5477,13 +5481,13 @@ RPRINT              proc
                     cmpa      #EOLTOK             ; IS IT AN EOL TOKEN?
                     beq       NewLine@@           ; YES. JUST PRINT A CR/LF.
                     cmpa      #MEOLTOK            ; IS IT A MID EOL TOKEN?
-                    bne       RPRINT2             ; NO. GO PRINT A STRING OR NUMBER.
+                    bne       Loop@@              ; NO. GO PRINT A STRING OR NUMBER.
 NewLine@@           jsr       NL                  ; YES. JUST PRINT A CR/LF.
                     clr       DEVNUM              ; GO BACK TO DEVICE #0.
                     rts                           ; BACK TO MAIN INTERPRET LOOP.
 
-RPRINT2             cmpa      #SCONTOK            ; IS IT A STRING CONSTANT?
-                    bne       RPRINT3             ; NO. GO CHECK FOR A "PRINT FUNCTION".
+Loop@@              cmpa      #SCONTOK            ; IS IT A STRING CONSTANT?
+                    bne       Func?@@             ; NO. GO CHECK FOR A "PRINT FUNCTION".
                     pshy
                     ldb       #2                  ; COMPENSATE FOR CONSTANT & LENGTH BYTE.
                     addb      1,y                 ; ADD IN LENGTH BYTE.
@@ -5494,65 +5498,65 @@ RPRINT2             cmpa      #SCONTOK            ; IS IT A STRING CONSTANT?
                     subb      #2                  ; SUBTRACT OUT THE DELIMETER COUNT.
                     inx:2                         ; POINT TO STRING.
                     jsr       OUTSTR              ; GO PRINT THE STRING.
-                    bra       RPRINT4             ; GO DO NEXT EXPRESSION.
+                    bra       NextExpr@@          ; GO DO NEXT EXPRESSION.
 
-RPRINT3             cmpa      #FUNCTFLG           ; IS IT A FUNCTION?
-                    bne       RPRINT10            ; NO. GO EVALUATE A NUMERIC EXPRESSION.
+Func?@@             cmpa      #FUNCTFLG           ; IS IT A FUNCTION?
+                    bne       NumExpr@@           ; NO. GO EVALUATE A NUMERIC EXPRESSION.
                     lda       1,y                 ; GET THE FUNCTION TYPE.
                     cmpa      #TABTOK             ; IS IT A TAB?
-                    bne       RPRINT11            ; NO GO CHECK FOR "CHR$".
+                    bne       Chr?@@              ; NO GO CHECK FOR "CHR$".
                     jsr       RTAB                ; GO DO TAB.
-                    bra       RPRINT4             ; GO SEE IF THERE'S MORE TO PRINT.
+                    bra       NextExpr@@          ; GO SEE IF THERE'S MORE TO PRINT.
 
-RPRINT11            cmpa      #CHRTOK             ; IS IT THE CHR$ FUNCTION.
-                    bne       RPRINT12            ; NO. GO CHECK FOR HEX().
+Chr?@@              cmpa      #CHRTOK             ; IS IT THE CHR$ FUNCTION.
+                    bne       Hex?@@              ; NO. GO CHECK FOR HEX().
                     jsr       RCHRS               ; YES. GO DO CHR$.
-                    bra       RPRINT4             ; GO SEE IF THERE'S MORE TO PRINT.
+                    bra       NextExpr@@          ; GO SEE IF THERE'S MORE TO PRINT.
 
-RPRINT12            cmpa      #HEXTOK             ; IS IT THE HEX() FUNCTION?
-                    bne       RPRINT10            ; NO. GO DO A NUMERIC EXPRESSION.
+Hex?@@              cmpa      #HEXTOK             ; IS IT THE HEX() FUNCTION?
+                    bne       NumExpr@@           ; NO. GO DO A NUMERIC EXPRESSION.
                     jsr       RHEX                ; YES. GO PRINT THE NUMBER AS HEX.
-                    bra       RPRINT4             ; GO SEE IF THERE'S MORE TO PRINT.
+                    bra       NextExpr@@          ; GO SEE IF THERE'S MORE TO PRINT.
 
-RPRINT10            cmpa      #HEX2TOK            ; IS IT THE HEX2() FUNCTION?
-                    bne       RPRINT14            ; NO. GO DO A NUMERIC EXPRESSION.
+NumExpr@@           cmpa      #HEX2TOK            ; IS IT THE HEX2() FUNCTION?
+                    bne       DoNumExpr@@         ; NO. GO DO A NUMERIC EXPRESSION.
                     jsr       RHEX2               ; YES GO PRINT A NUMBER >=255 AS 2 HEX BYTES.
-                    bra       RPRINT4             ; GO SEE IF THERE'S MORE TO PRINT.
+                    bra       NextExpr@@          ; GO SEE IF THERE'S MORE TO PRINT.
 
-RPRINT14            jsr       DONEXP              ; GO DO A NUMERIC EXPRESSION.
+DoNumExpr@@         jsr       DONEXP              ; GO DO A NUMERIC EXPRESSION.
                     jsr       PULNUM              ; GET THE NUMBER OFF THE NUMERIC STACK.
                     jsr       OUTDECI             ; PRINT IT.
                     lda       #SPC                ; PUT A TRAILING SPACE AFTER ALL NUMBERS.
                     jsr       OUTBYTE             ; PRINT IT.
-RPRINT4             jsr       RSKIPSPC            ; SKIP SPACES.
+NextExpr@@          jsr       RSKIPSPC            ; SKIP SPACES.
                     lda       ,y                  ; GET SEPERATOR CHARACTER.
                     cmpa      #COMMATOK           ; IS IT A COMMA?
-                    beq       RPRINT5             ; NO.
+                    beq       PastComma@@         ; NO.
                     cmpa      #SEMITOK            ; IS IT A SEMICOLON?
-                    bne       RPRINT6             ; NO. MUST BE AN EOLTOK.
+                    bne       Eol@@               ; NO. MUST BE AN EOLTOK.
                     iny                           ; DO NOTHING BUT BUMP THE IP.
-                    bra       RPRINT7             ; GO CHECK FOR EOL AFTER COMMA OR SEMICOLON.
+                    bra       Eol?@@              ; GO CHECK FOR EOL AFTER COMMA OR SEMICOLON.
 
-RPRINT5             iny                           ; BUMP IP PAST THE COMMATOK.
+PastComma@@         iny                           ; BUMP IP PAST THE COMMATOK.
                     ldb       PRINTPOS            ; YES. "TAB" TO NEXT PRINT FIELD.
                     andb      #$07                ; MASK OFF ALL BUT THE FIELD WIDTH.
                     negb                          ; MAKE IT NEGATIVE.
                     addb      #8                  ; ADD IN THE FIELD WIDTH. ARE WE ON A FIELD BOUND?
-                    beq       RPRINT7             ; YES. GO CHECK FOR AN EOL.
+                    beq       Eol?@@              ; YES. GO CHECK FOR AN EOL.
                     lda       #SPC                ; NO. GET A SPACE & PRINT TILL WE GET THERE.
-RPRINT8             jsr       OUTBYTE             ; PRINT A SPACE.
+SpaceLoop@@         jsr       OUTBYTE             ; PRINT A SPACE.
                     decb                          ; DECREMENT THE COUNT. ARE WE DONE?
-                    bne       RPRINT8             ; NO. KEEP GOING.
-RPRINT7             jsr       RSKIPSPC            ; SKIP ANY SPACES.
+                    bne       SpaceLoop@@         ; NO. KEEP GOING.
+Eol?@@              jsr       RSKIPSPC            ; SKIP ANY SPACES.
                     lda       ,y                  ; GET THE NEXT TOKEN IN THE LINE.
                     cmpa      #EOLTOK             ; IS IT AN EOL TOKEN?
-                    beq       RPRINT9             ; YES. DONT DO A CR/LF AFTER A COMMA OR SEMI.
+                    beq       Done@@              ; YES. DONT DO A CR/LF AFTER A COMMA OR SEMI.
                     cmpa      #MEOLTOK            ; NO. IS IT A MID EOL?
-                    beq       RPRINT9             ; SAME AS BEFORE.
-                    jmp       RPRINT2             ; IF NEITHER, GO PRINT THE NEXT EXPRESSION.
+                    beq       Done@@              ; SAME AS BEFORE.
+                    jmp       Loop@@              ; IF NEITHER, GO PRINT THE NEXT EXPRESSION.
 
-RPRINT6             jsr       NL                  ; DO A CR/LF IF EOL OR MIDEOL FOLLOWS EXPRESSION.
-RPRINT9             clr       DEVNUM              ; GO BACK TO DEVICE #0.
+Eol@@               jsr       NL                  ; DO A CR/LF IF EOL OR MIDEOL FOLLOWS EXPRESSION.
+Done@@              clr       DEVNUM              ; GO BACK TO DEVICE #0.
                     rts                           ; GO DO NEXT LINE.
 
 ;*******************************************************************************
@@ -5561,7 +5565,7 @@ RTAB                proc
                     bsr       PFUNCOM             ; GO GET ARG. & CHECK MAGNITUDE. IS ARG. OK?
                     beq       Loop@@              ; YES. GO DO TAB.
                     lda       #TABARGER           ; NO. ERROR.
-RTAB3               jmp       RPTRERR             ; REPORT ERROR.
+?RTAB               jmp       RPTRERR             ; REPORT ERROR.
 
 Loop@@              cmpb      PRINTPOS            ; ARE WE ALREADY PAST THE "TAB" POSITION?
                     bls       Done@@              ; YES. DONE.
@@ -5576,7 +5580,7 @@ RCHRS               proc
                     bsr       PFUNCOM             ; GO GET ARG. & CHECK MAGNITUDE. IS ARG. OK?
                     beq       Go@@                ; YES. GO DO TAB.
                     lda       #CHRARGER           ; NO. ERROR.
-                    bra       RTAB3               ; REPORT ERROR.
+                    bra       ?RTAB               ; REPORT ERROR.
 
 Go@@                tba                           ; PUT BYTE INTO A
                     jmp       OUTBYTE             ; PRINT THE BYTE & RETURN.
@@ -5585,16 +5589,16 @@ Go@@                tba                           ; PUT BYTE INTO A
 
 RHEX2               proc
                     bsr       PFUNCOM             ; GO GET ARG. & CHECK MAGNITUDE. IS ARG. OK?
-                    beq       RHEX1               ; YES. GO PRINT 2 HEX CHARACTERS & RETURN.
+                    beq       ?RHEX               ; YES. GO PRINT 2 HEX CHARACTERS & RETURN.
                     lda       #HEX2AERR           ; NO. ARG. MUST BE >=0 & <=255.
-                    bra       RTAB3               ; GO REPORT ERROR.
+                    bra       ?RTAB               ; GO REPORT ERROR.
 
 ;*******************************************************************************
 
 RHEX                proc
                     bsr       PFUNCOM             ; GO DO COMMON CODE FOR PRINT FUNCTIONS
                     bsr       PRNT2HEX            ; GO PRINT 2 HEX CHARACTERS.
-RHEX1               tba                           ; PUT LOWER BYTE IN A.
+?RHEX               tba                           ; PUT LOWER BYTE IN A.
 ;                   bra       PRNT2HEX
 
 ;*******************************************************************************
@@ -5660,7 +5664,7 @@ Dim@@               pshx                          ; SAVE THE POINTER TO THE DICT
 GoodSub@@           pshx
                     ldx       3,x                 ; GET POINTER TO STORAGE.
                     std       ,x                  ; PUT MAX SUBSCRIPT IN POOL STORAGE.
-                    addd      #1                  ; COMPENSATE FOR "0" SUBSCRIPT.
+                    incd                          ; COMPENSATE FOR "0" SUBSCRIPT.
                     pulx                          ; RESTORE POINTER TO DICTIONARY ENTRY.
                     lsld                          ; MULT. BY 2 (2 BYTES/INTEGER).
                     addd      STRASTG             ; ADD IN CURRENT POINTER TO POOL.
@@ -5921,7 +5925,7 @@ Go@@                stx       IBUFPTR             ; PUT IT IN THE INPUT BUFFER P
 ReadMore@@          pshy                          ; SAVE Y.
                     ldy       IBUFPTR
                     iny:2
-                    bsr       RESTOR4             ; GO FIND NEXT "DATA" STATEMENT.
+                    bsr       ?RRESTOR            ; GO FIND NEXT "DATA" STATEMENT.
                     puly                          ; RESTORE Y.
                     bra       RREAD               ; KEEP READING DATA.
 
@@ -5952,7 +5956,7 @@ Done@@              iny:2                         ; POINT PAST DATA TOKEN & THE 
                     puly                          ; RESTORE Y.
                     rts                           ; RETURN.
 
-RESTOR4             pshy                          ; CALL TO COMPENSATE FOR PULL OF Y ON RETURN.
+?RRESTOR            pshy                          ; CALL TO COMPENSATE FOR PULL OF Y ON RETURN.
                     bra       Cont@@
 
 ;*******************************************************************************
@@ -6141,7 +6145,7 @@ RONTIME             proc
                     iny                           ; PASS UP COMMA.
                     jsr       RSKIPSPC            ; SKIP SPACES.
                     sty       ONTIMLIN            ; SAVE THE POINTER TO THE LINE NUMBER.
-                    bra       RONIRQ2             ; GO FINISH UP.
+                    bra       ?RONIRQ             ; GO FINISH UP.
 
 ;*******************************************************************************
 
@@ -6154,10 +6158,10 @@ RONIRQ              proc
                     jsr       PULNUM              ; GET MODE. SHOULD WE ENABLE THE FUNCTION?
                     bne       Enable@@            ; YES.
                     std       ONIRQLIN            ; NO. MAKE THE LINE NUMBER 0.
-                    bra       RONIRQ2             ; GO FINISH UP.
+                    bra       ?RONIRQ             ; GO FINISH UP.
 
 Enable@@            sty       ONIRQLIN            ; SAVE THE POINTER TO THE LINE NUMBER,
-RONIRQ2             ldb       #3                  ; MOVE IP PAST THE LINE NUMBER.
+?RONIRQ             ldb       #3                  ; MOVE IP PAST THE LINE NUMBER.
                     aby
                     rts                           ; RETURN.
 
@@ -6477,36 +6481,36 @@ Save@@              stb       1,x                 ; PUT IT ON THE STACK.
 
 DOOP                proc
                     cmpa      #$70                ; IS IT A UINARY OPERATOR?
-                    blo       DOOP1               ; NO. GO CHECK THE NEXT GROUP.
+                    blo       _1@@                ; NO. GO CHECK THE NEXT GROUP.
                     suba      #$70                ; YES. SUBTRACT THE BASE VALUE OF THE GROUP.
                     ldx       #HEIR7              ; POINT TO THE EXECUTION ADDRESS TABLE.
                     bra       Go@@                ; GO DO THE OPERATION.
 
-DOOP1               cmpa      #$60                ; IS IT THE "^" OPERATOR?
-                    blo       DOOP2               ; NO. GO CHECK THE NEXT GROUP.
+_1@@                cmpa      #$60                ; IS IT THE "^" OPERATOR?
+                    blo       _2@@                ; NO. GO CHECK THE NEXT GROUP.
                     suba      #$60                ; YES. SUBTRACT THE BASE VALUE OF THE GROUP.
                     ldx       #HEIR6              ; POINT TO THE EXECUTION ADDRESS TABLE.
                     bra       Go@@                ; GO DO THE OPERATION.
 
-DOOP2               cmpa      #$50                ; IS IT MULTIPLY, DIVIDE, OR MOD?
-                    blo       DOOP3               ; NO. GO CHECK THE NEXT GROUP.
+_2@@                cmpa      #$50                ; IS IT MULTIPLY, DIVIDE, OR MOD?
+                    blo       _3@@                ; NO. GO CHECK THE NEXT GROUP.
                     suba      #$50                ; YES. SUBTRACT THE BASE VALUE OF THE GROUP.
                     ldx       #HEIR5              ; POINT TO THE EXECUTION ADDRESS TABLE.
                     bra       Go@@                ; GO DO THE OPERATION.
 
-DOOP3               cmpa      #$40                ; IS IT ADD OR SUBTRACT?
-                    blo       DOOP4               ; NO. GO CHECK THE NEXT GROUP.
+_3@@                cmpa      #$40                ; IS IT ADD OR SUBTRACT?
+                    blo       _4@@                ; NO. GO CHECK THE NEXT GROUP.
                     suba      #$40                ; YES. SUBTRACT THE BASE VALUE OF THE GROUP.
                     ldx       #HEIR4              ; POINT TO THE EXECUTION ADDRESS TABLE.
                     bra       Go@@                ; GO DO THE OPERATION.
 
-DOOP4               cmpa      #$30                ; IS IT A LOGICAL OPERATOR?
-                    blo       DOOP5               ; NO. GO CHECK THE NEXT GROUP.
+_4@@                cmpa      #$30                ; IS IT A LOGICAL OPERATOR?
+                    blo       _5@@                ; NO. GO CHECK THE NEXT GROUP.
                     suba      #$30                ; YES. SUBTRACT THE BASE VALUE OF THE GROUP.
                     ldx       #HEIR3              ; POINT TO THE EXECUTION ADDRESS TABLE.
                     bra       Go@@                ; GO DO THE OPERATION.
 
-DOOP5               cmpa      #$20                ; IS IT AND, OR, OR EOR?
+_5@@                cmpa      #$20                ; IS IT AND, OR, OR EOR?
                     blo       Fail@@              ; NO. ERROR.
                     suba      #$20                ; YES. SUBTRACT THE BASE VALUE OF THE GROUP.
                     ldx       #HEIR2              ; POINT TO THE EXECUTION ADDRESS TABLE.
@@ -6553,7 +6557,7 @@ REOR                proc
                     ldx       NUMSTACK
                     eora      ,x
                     eorb      1,x
-REOR1               std       ,x
+?REOR               std       ,x
                     rts
 
 ;*******************************************************************************
@@ -6563,7 +6567,7 @@ RORV                proc
                     ldx       NUMSTACK
                     ora       ,x
                     orb       1,x
-                    bra       REOR1
+                    bra       ?REOR
 
 ;*******************************************************************************
 
@@ -6572,7 +6576,7 @@ RAND                proc
                     ldx       NUMSTACK
                     anda      ,x
                     andb      1,x
-                    bra       REOR1
+                    bra       ?REOR
 
 ;*******************************************************************************
 
@@ -6580,7 +6584,7 @@ RPLUS               proc
                     jsr       PULNUM
                     ldx       NUMSTACK
                     addd      ,x
-                    bra       REOR1
+                    bra       ?REOR
 
 ;*******************************************************************************
 
@@ -6595,7 +6599,8 @@ RMINUS              proc
 
 ;*******************************************************************************
 
-RDIV                bsr       RDIVS               ; GO DO A SIGNED DIVIDE.
+RDIV                proc
+                    bsr       RDIVS               ; GO DO A SIGNED DIVIDE.
                     jsr       PULNUM              ; GET INTEGER RESULT OFF STACK.
                     ldx       NUMSTACK            ; POINT TO NUMERIC STACK.
                     std       ,x                  ; OVERWRITE REMAINDER.
@@ -6609,18 +6614,18 @@ RDIVS               proc
                     eora      2,x                 ; GET SIGN OF THE RESULT.
                     psha                          ; SAVE RESULT.
                     ldd       ,x                  ; GET DIVISOR OFF NUMERIC STACK. IS IT ZERO?
-                    bne       RDIV1               ; NO. CONTINUE.
-RDIV2               lda       #ZDIVERR            ; YES. GET DIVIDE BY ZERO ERROR.
+                    bne       Go@@                ; NO. CONTINUE.
+                    lda       #ZDIVERR            ; YES. GET DIVIDE BY ZERO ERROR.
                     jmp       RPTRERR             ; GO REPORT IT.
 
-RDIV1               bpl       RDIV3               ; IF POSITIVE IT'S OK.
+Go@@                bpl       Pos@@               ; IF POSITIVE IT'S OK.
                     jsr       RNEG                ; IF NOT MAKE IT POSITIVE.
-RDIV3               tst       2,x                 ; IS THE DIVIDEND NEGATIVE?
-                    bpl       RDIV4               ; NO. CONTINUE.
+Pos@@               tst       2,x                 ; IS THE DIVIDEND NEGATIVE?
+                    bpl       Cont@@              ; NO. CONTINUE.
                     ldd       2,x                 ; YES. GET THE NUMBER.
                     negd                          ; NEGATE IT.
                     std       2,x                 ; SAVE THE RESULT.
-RDIV4               ldd       ,x                  ; GET THE DIVISOR.
+Cont@@              ldd       ,x                  ; GET THE DIVISOR.
                     ldx       2,x                 ; GET THE DIVIDEND.
                     xgdx                          ; PUT THEM IN THE PROPER REGISTERS.
                     idiv                          ; DO AN UNSIGNED DIVIDE.
@@ -6631,12 +6636,12 @@ RDIV4               ldd       ,x                  ; GET THE DIVISOR.
                     std       ,x                  ; PUT IT ON THE NUMERIC STACK.
                     pula                          ; GET THE SIGN OF THE RESULT.
                     tsta                          ; SET THE CONDITION CODES.
-                    bpl       RDIV5               ; IF PLUS, RESULT OK AS IS.
+                    bpl       Done@@              ; IF PLUS, RESULT OK AS IS.
                     jsr       RNEG                ; MAKE THE QUOTIENT NEGATIVE.
                     ldd       2,x                 ; GET THE REMAINDER.
                     negd                          ; MAKE IT NEGATIVE.
                     std       2,x                 ; SAVE THE RESULT.
-RDIV5               rts                           ; RETURN.
+Done@@              rts                           ; RETURN.
 
 ;*******************************************************************************
 
@@ -6698,9 +6703,9 @@ RNEG                proc
 
 RLT                 proc
                     bsr       CMPNUM
-                    bge       RLT1
-RLT2                inc       3,x
-RLT1                inx:2
+                    bge       ?RLT
+?RLT2               inc       3,x
+?RLT                inx:2
                     stx       NUMSTACK
                     rts
 
@@ -6708,36 +6713,36 @@ RLT1                inx:2
 
 RGT                 proc
                     bsr       CMPNUM
-                    ble       RLT1
-                    bra       RLT2
+                    ble       ?RLT
+                    bra       ?RLT2
 
 ;*******************************************************************************
 
 RLTEQ               proc
                     bsr       CMPNUM
-                    bgt       RLT1
-                    bra       RLT2
+                    bgt       ?RLT
+                    bra       ?RLT2
 
 ;*******************************************************************************
 
 RGTEQ               proc
                     bsr       CMPNUM
-                    blt       RLT1
-                    bra       RLT2
+                    blt       ?RLT
+                    bra       ?RLT2
 
 ;*******************************************************************************
 
 REQ                 proc
                     bsr       CMPNUM
-                    bne       RLT1
-                    bra       RLT2
+                    bne       ?RLT
+                    bra       ?RLT2
 
 ;*******************************************************************************
 
 RNOTEQ              proc
                     bsr       CMPNUM
-                    beq       RLT1
-                    bra       RLT2
+                    beq       ?RLT
+                    bra       ?RLT2
 
 ;*******************************************************************************
 
@@ -6760,9 +6765,9 @@ RABS                proc
                     jsr       DONEXP
                     ldx       NUMSTACK
                     ldd       ,x
-                    bpl       RABS1
-RABS2               negd
-RABS1               std       ,x
+                    bpl       ?RABS
+?RABS_Neg           negd
+?RABS               std       ,x
                     rts
 
 ;*******************************************************************************
@@ -6771,11 +6776,11 @@ RSGN                proc
                     jsr       DONEXP
                     ldx       NUMSTACK
                     ldd       ,x
-                    beq       RABS1
+                    beq       ?RABS
                     ldd       #1
                     tst       ,x
-                    bpl       RABS1
-                    bra       RABS2
+                    bpl       ?RABS
+                    bra       ?RABS_Neg
 
 ;*******************************************************************************
 
@@ -6810,11 +6815,11 @@ RFEEP               proc
                     ldx       NUMSTACK            ; POINT TO THE OPERAND STACK.
                     ldd       ,x                  ; GET THE SUBSCRIPT OFF THE STACK.
                     cpd       #MAXEESUB           ; IS IT WITHIN THE LIMIT?
-                    bls       RFEEP1              ; YES. GO GET THE VALUE.
+                    bls       Go@@                ; YES. GO GET THE VALUE.
                     lda       #EESUBERR           ; NO. SUBSCRIPT ERROR.
 RFEEP2              jmp       RPTRERR             ; REPORT THE ERROR.
 
-RFEEP1              lsld                          ; MULT THE SUBSCRIPT BY 2.
+Go@@                lsld                          ; MULT THE SUBSCRIPT BY 2.
                     addd      #EEPBASAD           ; ADD IN THE BASE ADDRESS OF THE EEPROM ADDRESS.
                     xgdx                          ; PUT THE ADDRESS IN X.
                     ldd       ,x                  ; GET THE DATA.
@@ -6834,7 +6839,7 @@ RFDIV               proc
                     fdiv                          ; DO THE FRACTIONAL DIVIDE.
                     bvc       Go@@                ; ALL IS OK IF V=0. (IX > D).
                     lda       #OVDV0ERR           ; ERROR. EITHER OVERFLOW OR /0 ERROR.
-RFDIV2              bra       RFEEP2              ; GO REPORT IT.
+?RFEEP2             bra       RFEEP2              ; GO REPORT IT.
 
 Go@@                xgdx                          ; PUT QUOTIENT IN D.
                     ldx       NUMSTACK            ; POINT TO OPERAND STACK.
@@ -6849,16 +6854,16 @@ RADC                proc
                     jsr       DONEXP              ; GO GET THE CHANNEL NUMBER TO CONVERT.
                     ldx       NUMSTACK            ; POINT TO THE RESULT.
                     ldd       ,x                  ; GET THE CHANNEL NUMBER.
-                    bmi       RADC4               ; NEGATIVE CHANNEL NUMBERS ARE ILLEGAL.
+                    bmi       Fail@@              ; NEGATIVE CHANNEL NUMBERS ARE ILLEGAL.
                     cpd       #7                  ; IS IT A VALID CHANNEL NUMBER?
-                    bls       RADC1               ; YES. GO CONVERT IT.
-RADC4               lda       #INVCHERR           ; NO. INVALID CHANNEL NUMBER.
-                    bra       RFDIV2              ; GO REPORT THE ERROR.
+                    bls       Go@@                ; YES. GO CONVERT IT.
+Fail@@              lda       #INVCHERR           ; NO. INVALID CHANNEL NUMBER.
+                    bra       ?RFEEP2             ; GO REPORT THE ERROR.
 
-RADC1               ldx       IOBaseV
+Go@@                ldx       IOBaseV
                     stb       ADCTL,x             ; START THE CONVERSION ON THE SELECTED.
-RADC2               tst       ADCTL,x             ; IS THE CONVERSION COMPLETE?
-                    bpl       RADC2               ; NO. WAIT FOR 4 CONVERSIONS ON 1 CHANNEL.
+WaitAD@@            tst       ADCTL,x             ; IS THE CONVERSION COMPLETE?
+                    bpl       WaitAD@@            ; NO. WAIT FOR 4 CONVERSIONS ON 1 CHANNEL.
                     clra                          ; YES. NOW AVERAGE THE 4 CONVERSIONS.
                     ldb       ADR1,x              ; GET 1ST RESULT.
                     addb      ADR2,x              ; ADD IN THE SECOND.
@@ -6900,9 +6905,9 @@ Done@@              lsrd                          ; MAKE THE NUMBER POSITIVE.
 
 ;*******************************************************************************
 
-ITAB                equ       *
-ICHRS               equ       *
-IHEX                equ       *
+ITAB                proc
+ICHRS               proc
+IHEX                proc
 IHEX2               proc
                     lda       #PRFUNERR           ; THESE FUNCTIONS MUST BE USED ONLY IN
                     jmp       RPTRERR             ; PRINT STATEMENTS.
@@ -6925,7 +6930,7 @@ RFPACC              proc
 
 RFPORTA             proc
                     ldb       #PORTAIO            ; GET DATA FROM PORTA.
-RFPORTA1            ldx       IOBaseV
+?RFPORT             ldx       IOBaseV
                     abx
                     ldb       ,x
                     clra                          ; CLEAR UPPER BYTE OF WORD.
@@ -6938,25 +6943,25 @@ RFPORTA2            dey:2                         ; DECREMENT IP BECAUSE CALLING
 
 RFPORTB             proc
                     ldb       #PORTBIO
-                    bra       RFPORTA1
+                    bra       ?RFPORT
 
 ;*******************************************************************************
 
 RFPORTC             proc
                     ldb       #PORTCIO
-                    bra       RFPORTA1
+                    bra       ?RFPORT
 
 ;*******************************************************************************
 
 RFPORTD             proc
                     ldb       #PORTDIO
-                    bra       RFPORTA1
+                    bra       ?RFPORT
 
 ;*******************************************************************************
 
 RFPORTE             proc
                     ldb       #PORTEIO
-                    bra       RFPORTA1
+                    bra       ?RFPORT
 ;                   opt       lis
 ;                   include   'iopkg.mod'
                     title     IOPKG
@@ -7186,7 +7191,11 @@ DFLOPADR            dw        $4000               ; Address of flip-flop used to
                     end       MAIN
 
 ?                   macro
+          #ifz HC11
+                    #Hint     Verification~'..................................................................................................................................'.1.{:width-75}~ 8174 bytes, RAM:.. 208, CRC: $18D0
+          #else
                     #Hint     Verification~'..................................................................................................................................'.1.{:width-75}~ 8164 bytes, RAM:.. 208, CRC: $3FEB
+          #endif
                     endm
 
                     @?
