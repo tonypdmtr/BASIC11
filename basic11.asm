@@ -60,22 +60,9 @@
                     #OptRelOff
                     #OptRtsOff
 
-Include             macro
-                    mset      #
-                    #Include  ~1~
-                    endm
-
-Name                macro
-                    mset      #
-                    title     ~1~
-                    endm
-
 Title               macro
                     mset      #
                     #Message  Processing \@~1~\@
-                    endm
-
-Page                macro
                     #Page
                     endm
 
@@ -1355,7 +1342,6 @@ PUTTOK              proc
                     jmp       RPTERR              ; GO REPORT IT.
 ;                   include   'basiclb2.mod'
                     title     BASICLB2
-                    page
 
 ; *<><><><><><> NOTE: FUNCTION PERFORMED IN 'XLATE' <><><><><><>
 ;
@@ -1857,7 +1843,6 @@ NOTS                fcs       'NOT'
                     fcb       0                   ; END OF TABLE MARKER.
 ;                   include   'basiclb3.mod'
                     title     BASICLB3
-                    page
 
 ;*******************************************************************************
 ;***** getvar *****/
@@ -2358,7 +2343,6 @@ Quote@@             jsr       PUTTOK
                     rts
 ;                   include   'basiclb5.mod'
                     title     BASICLB5
-                    page
 
 ;*******************************************************************************
 ;***** getfun() *****/
@@ -2649,7 +2633,6 @@ XTIMEF              proc
                     rts                           ; RETURN.
 ;                   include   'basiclb4.mod'
                     title     BASICLB4
-                    page
 
 ;*******************************************************************************
 ;***** xon *****/
@@ -3390,7 +3373,6 @@ OUTDECI4            ldd       1,y                 ; GET CURRENT DIVISOR.
           #endif
 ;                   include   'leditor.mod'
                     title     LEDITOR
-                    page
 
 ;***** storlin() *****/
 ;
@@ -4027,7 +4009,6 @@ PACCINT             proc
 
 ;                   include   'command1.mod'
                     title     COMMAND1
-                    page
 
 ;*******************************************************************************
 ;***** chckcmds() *****/
@@ -4892,8 +4873,7 @@ Done@@              ldx       VAREND
                     rts
 
 ;                   include   'command2.mod'
-                    name      COMMAND2
-                    page
+                    title     COMMAND2
 
 ;*******************************************************************************
 
@@ -5108,7 +5088,6 @@ CPEQ                fcs       ')='
 #endif ;------------------------------------------------------------------------
 ;                   include   'runtime1.mod'
                     title     RUNTIME1
-                    page
 
 ;*******************************************************************************
 
@@ -5444,7 +5423,6 @@ RPORTD              proc
                     bra       ?RPORT              ; GO DO AN ASIGNMENT.
 ;                   include   'runtime2.mod'
                     title     RUNTIME2
-                    page
 
 ;*******************************************************************************
 
@@ -5693,7 +5671,6 @@ Clear@@             clr       ,x                  ; CLEAR THE STORAGE.
 Done@@              rts                           ; BACK TO MAIN INTERPRET LOOP.
 ;                   include   'runtime3.mod'
                     title     RUNTIME3
-                    page
 
 ;*******************************************************************************
 
@@ -6239,7 +6216,7 @@ Done@@              pula                          ; GET OLD I-BIT STATUS OFF STA
                     rts                           ; RETURN.
 ;                   include   'rexpres.mod'
                     title     REXPRES
-                    page
+
 ;*******************************************************************************
 ;                                                                              *
 ;               RUNTIME EXPRESSION EVALUATION SUBROUTINE                       *
@@ -6965,7 +6942,6 @@ RFPORTE             proc
 ;                   opt       lis
 ;                   include   'iopkg.mod'
                     title     IOPKG
-                    page
 
 ;*******************************************************************************
 
@@ -7131,7 +7107,6 @@ Send@@              bra       SCIOUT              ; SEND THE CHARACTER TO THE PR
 
 ;                   include   'vectors.mod'
                     title     Config/Reset/Interrupt Vectors
-                    page
           #if * > $FFA0
                     #Fatal    BASIC Is Too Large
           #endif
