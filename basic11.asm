@@ -17,7 +17,7 @@
 ; 7. Replaced some instruction sequences with ASM11 internal macros for clarity
 ; 8. Added CRC verification display message at the end of this file
 ; 9. Slowly converting to 100% ASM11 idiomatic syntax [WORK-IN-PROGRESS]
-;
+;10. Placed on GitHub https://github.com/tonypdmtr/BASIC11/blob/master/basic11.asm
 ;===============================================================================
 ; I have had many, many requests from M68HC11 users over the
 ; years for the source code for BASIC11. I was very reluctant to
@@ -67,7 +67,26 @@ Title               macro
                     endm
 
 ;*******************************************************************************
+; Macros
+;*******************************************************************************
 
+token               macro     ['String'],Token,Subroutine
+                    mreq      1,2:['String'],Token,Subroutine
+          #if :nn = 3
+                    fcs       ~1~
+                    mdel      1
+          #endif
+          #ifstr ~1~
+                    fcs       ~1~
+          #else
+                    fcb       ~1~
+          #endif
+                    fdb       ~2~
+                    endm
+
+;*******************************************************************************
+
+VERSION             equ       155
 BUS_KHZ             def       2000
 
 ;*******************************************************************************
@@ -209,7 +228,7 @@ INVCHERR            next      :temp               ; invalid channel number in AD
 PRTASERR            next      :temp               ; tried to assign a value <0 or >255 to PORT(X)
 ILPRTERR            next      :temp               ; illegal port error
 ILLIOERR            next      :temp               ; illegal I/O vector number <0 or >7
-UNINIERR            next      :temp               ; uninitalized I/O vector
+UNINIERR            next      :temp               ; uninitialized I/O vector
 HEX2AERR            next      :temp               ; argument <0 or >255 in HEX2 function
 NOTALERR            next      :temp               ; statement not allowed in direct mode
 NOTINTER            next      :temp               ; an RETI statement executed when not in interrupt
@@ -339,7 +358,7 @@ MEOLTOK             equ       $7A                 ; :
 EQUALTOK            equ       $79                 ; '='
 PNUMTOK             equ       $78                 ; '#'
 
-JMPOP               equ       $7E                 ; OP-CODE FOR "JMP" (USED TO INITALIZE INTERRUPT TABLE)
+JMPOP               equ       $7E                 ; OP-CODE FOR "JMP" (USED TO INITIALIZE INTERRUPT TABLE)
 
 ;*******************************************************************************
                     #RAM                          ; define variables
@@ -422,15 +441,15 @@ SUBCNT              rmb       2                   ;
 TOKPTR              rmb       2                   ; token pointer (used for list command)
 VarSize             rmb       2                   ; used by the line editor. size of the variable table
           #if * > $9E
-                    #Fatal    Ran out of Page 0 RAM
+                    #Fatal    Ran out of zero-page RAM
           #endif
                     org       $009E
 
 CONSTAT             rmb       3                   ; GET CONSOLE STATUS FOR BREAK ROUTINE.
 INCONNE             rmb       3                   ; GET BYTE DIRECTLY FROM CONSOLE FOR BREAK ROUTINE.
 
-INTABLE             rmb       16                  ; RESERVE SPACE FOR 8 DIFFERENT INPUT ROUTINES.
-OUTABLE             rmb       16                  ; RESERVE SPACE FOR 8 DIFFERENT OUTPUT ROUTINES.
+INTABLE             rmb       2*8                 ; RESERVE SPACE FOR 8 DIFFERENT INPUT ROUTINES.
+OUTABLE             rmb       2*8                 ; RESERVE SPACE FOR 8 DIFFERENT OUTPUT ROUTINES.
 
 ; START OF RAM INTERRUPT VECTORS.
 
@@ -481,7 +500,7 @@ CMF                 rmb       3                   ; CLOCK MONITOR FAIL.
 ;
 ; *main()
 ; *{
-; initvars();            initalize all variables & pointers
+; initvars();            initialize all variables & pointers
 ; outheader();           send startup message to console
 ; outrdy();              output ready message
 
@@ -490,7 +509,7 @@ CMF                 rmb       3                   ; CLOCK MONITOR FAIL.
 ;*******************************************************************************
 
 MAIN                proc
-                    jsr       INITVARS            ; INITALIZE ALL INTERNAL VARIABLES.
+                    jsr       INITVARS            ; INITIALIZE ALL INTERNAL VARIABLES.
                     ldx       EEStart
                     lda       AUTOSTF,x           ; get the auto start flag.
                     cmpa      #$55
@@ -579,7 +598,7 @@ OUTHEADR            proc
                     jmp       PL
 
 Msg@@               fcb       CR,LF,CR,LF
-                    fcc       'BASIC11 v1.55',CR,LF
+                    fcc       'BASIC11 v{VERSION(2)}',CR,LF
                     fcc       'Copyright 1985-1990 by',CR,LF
                     fcs       'Gordon Doughman',CR,LF
 
@@ -665,7 +684,7 @@ Go@@                cmpa      #SPC
                     bne       Loop@@
 
 ; *ibufptr=EOL;          put EOL in input buffer
-; ibufptr=inbuff;        initalize the input buffer pointer
+; ibufptr=inbuff;        initialize the input buffer pointer
 ; return;
 ; *}
 
@@ -751,7 +770,7 @@ Done@@              rts
 ; *parse()
 ; *{
 ; int num;
-; tbufptr=tknbuf;                initalize the token buffer pointer
+; tbufptr=tknbuf;                initialize the token buffer pointer
 
 PARSE               proc
                     ldx       TKNBUFS             ; Get the start of the token buffer
@@ -1005,7 +1024,7 @@ XLATE               proc
                     beq       Done@@              ; YES.
                     clr       IFWHFLAG            ; NOT XLATING "IF" OR "WHILE"
                     jsr       BLANKS              ; SKIP BLANKS.
-                    ldx       #KEYWORDS           ; POINT TO KEYWORD TABLE.
+                    ldx       #Keywords@@         ; POINT TO KEYWORD TABLE.
 Loop@@              jsr       STREQ               ; IS KEYWORD IS IN THE INPUT BUFFER?
                     bcs       Tokenize@@          ; YES GO PROCESS IT.
 SkipWord@@          inx                           ; NO. POINT TO NEXT CHAR.
@@ -1049,120 +1068,48 @@ Done@@              lda       #EOLTOK             ; GET EOL TOKEN.
                     stb       2,x                 ; STORE LENGTH.
                     rts                           ; RETURN.
 
-;        KEYWORD LOOK UP TABLE
+;-------------------------------------------------------------------------------
+; KEYWORD LOOK UP TABLE
+;-------------------------------------------------------------------------------
 
-KEYWORDS            equ       *
-DATA                fcs       'DATA'
-                    fcb       DATATOK
-                    fdb       XDATA
-LET                 fcs       'LET'
-                    fcb       LETTOK
-                    fdb       XLET
-READ                fcs       'READ'
-                    fcb       READTOK
-                    fdb       XREAD
-RESTORE             fcs       'RESTORE'
-                    fcb       RESTRTOK
-                    fdb       XRESTORE
-GOSUB               fcs       'GOSUB'
-                    fcb       GOSUBTOK
-                    fdb       XGOSUB
-GOTO                fcs       'GOTO'
-                    fcb       GOTOTOK
-                    fdb       XGOTO
-ONTIME              fcs       'ONTIME'
-                    fcb       ONTIMTOK
-                    fdb       XONTIME
-ONIRQ               fcs       'ONIRQ'
-                    fcb       ONIRQTOK
-                    fdb       XONIRQ
-ONPACC              fcs       'ONPACC'
-                    fcb       ONPACTOK
-                    fdb       XONPACC
-ON                  fcs       'ON'
-                    fcb       ONTOK
-                    fdb       XON
-RETURN              fcs       'RETURN'
-                    fcb       RETNTOK
-                    fdb       XRETURN
-IIF                 fcs       'IF'
-                    fcb       IFTOK
-                    fdb       XIF
-INPUT               fcs       'INPUT'
-                    fcb       INPUTTOK
-                    fdb       XINPUT
-PRINT               fcs       'PRINT'
-                    fcb       PRINTTOK
-                    fdb       XPRINT
-                    fcs       '?'
-                    fcb       PRINTTOK
-                    fdb       XPRINT
-FOR                 fcs       'FOR'
-                    fcb       FORTOK
-                    fdb       XFOR
-NEXT                fcs       'NEXT'
-                    fcb       NEXTTOK
-                    fdb       XNEXT
-STOPSS              fcs       'STOP'
-                    fcb       STOPTOK
-                    fdb       XSTOP
-ENDWH               fcs       'ENDWH'
-                    fcb       ENDWHTOK
-                    fdb       XENDWH
-ENDS                fcs       'END'
-                    fcb       ENDTOK
-                    fdb       XEND
-REM                 fcs       'REM'
-                    fcb       REMTOK
-                    fdb       XREM
-TRON                fcs       'TRON'
-                    fcb       TRONTOK
-                    fdb       XTRON
-TROFF               fcs       'TROFF'
-                    fcb       TROFFTOK
-                    fdb       XTROFF
-WHILE               fcs       'WHILE'
-                    fcb       WHILETOK
-                    fdb       XWHILE
-POKE                fcs       'POKE'
-                    fcb       POKETOK
-                    fdb       XPOKE
-DIM                 fcs       'DIM'
-                    fcb       DIMTOK
-                    fdb       XDIM
-EEP                 fcs       'EEP'
-                    fcb       EEPTOK
-                    fdb       XEEP
-PORTA               fcs       'PORTA'
-                    fcb       PORTATOK
-                    fdb       XPORTA
-PORTB               fcs       'PORTB'
-                    fcb       PORTBTOK
-                    fdb       XPORTB
-PORTC               fcs       'PORTC'
-                    fcb       PORTCTOK
-                    fdb       XPORTC
-PORTD               fcs       'PORTD'
-                    fcb       PORTDTOK
-                    fdb       XPORTD
-INBYTES             fcs       'INBYTE'
-                    fcb       INBYTTOK
-                    fdb       XINBYTE
-TIME                fcs       'TIME'
-                    fcb       TIMETOK
-                    fdb       XTIME
-RETI                fcs       'RETI'
-                    fcb       RETITOK
-                    fdb       XRETI
-PACC                fcs       'PACC'
-                    fcb       PACCTOK
-                    fdb       XPACC
-SLEEP               fcs       'SLEEP'
-                    fcb       SLEEPTOK
-                    fdb       XSLEEP
-RTIMES              fcs       'RTIME'
-                    fcb       RTIMETOK
-                    fdb       XRTIME
+Keywords@@          equ       *
+DATA                @token    'DATA',DATATOK,XDATA
+LET                 @token    'LET',LETTOK,XLET
+READ                @token    'READ',READTOK,XREAD
+RESTORE             @token    'RESTORE',RESTRTOK,XRESTORE
+GOSUB               @token    'GOSUB',GOSUBTOK,XGOSUB
+GOTO                @token    'GOTO',GOTOTOK,XGOTO
+ONTIME              @token    'ONTIME',ONTIMTOK,XONTIME
+ONIRQ               @token    'ONIRQ',ONIRQTOK,XONIRQ
+ONPACC              @token    'ONPACC',ONPACTOK,XONPACC
+ON                  @token    'ON',ONTOK,XON
+RETURN              @token    'RETURN',RETNTOK,XRETURN
+IIF                 @token    'IF',IFTOK,XIF
+INPUT               @token    'INPUT',INPUTTOK,XINPUT
+PRINT               @token    'PRINT',PRINTTOK,XPRINT
+                    @token    '?',PRINTTOK,XPRINT
+FOR                 @token    'FOR',FORTOK,XFOR
+NEXT                @token    'NEXT',NEXTTOK,XNEXT
+STOPSS              @token    'STOP',STOPTOK,XSTOP
+ENDWH               @token    'ENDWH',ENDWHTOK,XENDWH
+ENDS                @token    'END',ENDTOK,XEND
+REM                 @token    'REM',REMTOK,XREM
+TRON                @token    'TRON',TRONTOK,XTRON
+TROFF               @token    'TROFF',TROFFTOK,XTROFF
+WHILE               @token    'WHILE',WHILETOK,XWHILE
+POKE                @token    'POKE',POKETOK,XPOKE
+DIM                 @token    'DIM',DIMTOK,XDIM
+EEP                 @token    'EEP',EEPTOK,XEEP
+PORTA               @token    'PORTA',PORTATOK,XPORTA
+PORTB               @token    'PORTB',PORTBTOK,XPORTB
+PORTC               @token    'PORTC',PORTCTOK,XPORTC
+PORTD               @token    'PORTD',PORTDTOK,XPORTD
+INBYTES             @token    'INBYTE',INBYTTOK,XINBYTE
+TIME                @token    'TIME',TIMETOK,XTIME
+RETI                @token    'RETI',RETITOK,XRETI
+PACC                @token    'PACC',PACCTOK,XPACC
+SLEEP               @token    'SLEEP',SLEEPTOK,XSLEEP
+RTIMES              @token    'RTIME',RTIMETOK,XRTIME
                     fcb       0                   ; END OF TABLE MARKER.
 
 ;*******************************************************************************
@@ -1487,7 +1434,7 @@ XREM                proc
                     pshx                          ; SAVE IT. (POINTER TO LENGTH OF REM OR DATA)
                     lda       #0                  ; SAVE A BYTE FOR THE LENGTH.
                     bsr       PUTTOK
-                    ldb       #2                  ; INITALIZE LENGTH TO 2 (INCLUDES LENGTH & EOL.
+                    ldb       #2                  ; INITIALIZE LENGTH TO 2 (INCLUDES LENGTH & EOL.
 Loop@@              bsr       GETCHR
                     cmpa      #EOL
                     beq       Done@@
@@ -2293,7 +2240,7 @@ Done@@              clc
 ; *{
 ; short count;
 ; char *bufptr,c;
-; count=2;       initalize byte count to 2
+; count=2;       initialize byte count to 2
 ; *tbufptr++=SCONTOK;   put string constant token in buffer
 ; bufptr=tbufptr++;   save value of tbufptr, advance to next byte,
 ;                     and reserve a byte for string length
@@ -2363,7 +2310,7 @@ Quote@@             jsr       PUTTOK
 ; *}
 
 GETFUN              proc
-                    ldx       #FUNCTBL
+                    ldx       #FuncTable@@
 Loop@@              jsr       STREQ
                     bcs       Func@@
 FindNull@@          inx
@@ -2382,52 +2329,24 @@ Func@@              lda       #FUNCTFLG
                     ldx       2,x
                     jmp       ,x
 
-FUNCTBL             equ       *
-FDIVS               fcs       'FDIV'
-                    fcb       FDIVTOK
-                    fdb       BNUMFUN
-CHRS                fcs       'CHR$'
-                    fcb       CHRTOK
-                    fdb       UNUMFUN
-ABS                 fcs       'ABS'
-                    fcb       ABSTOK
-                    fdb       UNUMFUN
-RND                 fcs       'RND'
-                    fcb       RNDTOK
-                    fdb       UNUMFUN
-SGN                 fcs       'SGN'
-                    fcb       SGNTOK
-                    fdb       UNUMFUN
-TABS                fcs       'TAB'
-                    fcb       TABTOK
-                    fdb       UNUMFUN
-ADCS                fcs       'ADC'
-                    fcb       ADCTOK
-                    fdb       UNUMFUN
-CALL                fcs       'CALL'
-                    fcb       CALLTOK
-                    fdb       UNUMFUN
-PEEK                fcs       'PEEK'
-                    fcb       PEEKTOK
-                    fdb       UNUMFUN
-                    fcs       'EEP'
-                    fcb       FEEPTOK
-                    fdb       UNUMFUN
-HEX2                fcs       'HEX2'
-                    fcb       HEX2TOK
-                    fdb       UNUMFUN
-HEX                 fcs       'HEX'
-                    fcb       HEXTOK
-                    fdb       UNUMFUN
-                    fcs       'PORT'
-                    fcb       FPRTATOK
-                    fdb       FINDPORT
-                    fcs       'TIME'
-                    fcb       FTIMETOK
-                    fdb       XTIMEF
-                    fcs       'PACC'
-                    fcb       FPACCTOK
-                    fdb       XPACCF
+;-------------------------------------------------------------------------------
+
+FuncTable@@         equ       *
+FDIVS               @token    'FDIV',FDIVTOK,BNUMFUN
+CHRS                @token    'CHR$',CHRTOK,UNUMFUN
+ABS                 @token    'ABS',ABSTOK,UNUMFUN
+RND                 @token    'RND',RNDTOK,UNUMFUN
+SGN                 @token    'SGN',SGNTOK,UNUMFUN
+TABS                @token    'TAB',TABTOK,UNUMFUN
+ADCS                @token    'ADC',ADCTOK,UNUMFUN
+CALL                @token    'CALL',CALLTOK,UNUMFUN
+PEEK                @token    'PEEK',PEEKTOK,UNUMFUN
+                    @token    'EEP',FEEPTOK,UNUMFUN
+HEX2                @token    'HEX2',HEX2TOK,UNUMFUN
+HEX                 @token    'HEX',HEXTOK,UNUMFUN
+                    @token    'PORT',FPRTATOK,FINDPORT
+                    @token    'TIME',FTIMETOK,XTIMEF
+                    @token    'PACC',FPACCTOK,XPACCF
                     fcb       0                   ; END OF TABLE MARKER.
 
 ;*******************************************************************************
@@ -3337,7 +3256,7 @@ Go@@                pshy
                     pshd                          ; SAVE THE NUMBER TO PRINT.
                     ldd       #10000              ; NUMBER TO START DIVIDING BY.
                     pshd
-                    clrb                          ; SET INITAL VALUE OF LEADING ZERO SUPRESS FLAG.
+                    clrb                          ; SET INITIAL VALUE OF LEADING ZERO SUPRESS FLAG.
                     pshb
                     tsy
                     ldd       3,y                 ; IS THE NUMBER NEGATIVE?
@@ -3865,7 +3784,7 @@ Loop@@              clr       ,x                  ; CLEAR THE STORAGE TO ZERO.
 NormalInit@@        ldd       #0                  ; MAKE THE HIGHEST LINE IN THE PROGRAM 0.
                     std       HILINE
                     std       CURLINE             ; MAKE THE CURRENT LINE #0.
-                    jsr       RUNINIT             ; GO INITALIZE ALL THE SOFTWARE STACKS.
+                    jsr       RUNINIT             ; GO INITIALIZE ALL THE SOFTWARE STACKS.
                     clr       TRFLAG              ; TURN THE TRACE MODE OFF.
                     lda       #1                  ; "CONT" COMMAND NOT ALLOWED.
                     sta       CONTFLAG
@@ -3903,15 +3822,15 @@ POWERUP             proc
                     lda       #JMPOP              ; GET THE JMP OPCODE.
 Loop@@              sta       ,x                  ; STORE IT.
                     inx                           ; POINT TO THE NEXT VECTOR.
-                    sty       ,x                  ; INITALIZE VECTOR TO "RTI".
+                    sty       ,x                  ; INITIALIZE VECTOR TO "RTI".
                     inx:2
                     decb                          ; DONE?
-                    bne       Loop@@              ; NO. INITALIZE ALL VECTORS.
+                    bne       Loop@@              ; NO. INITIALIZE ALL VECTORS.
                     ldx       #ILLOP              ; POINT TO THE ILLEGAL OP-CODE VECTOR.
                     ldd       #POWERUP            ; GET THE ADDRESS OF THE POWER UP VECTOR.
-                    std       1,x                 ; INITALIZE ILLEGAL OP-CODE VECTOR.
-                    std       4,x                 ; INITALIZE WATCH DOG FAIL VECTOR.
-                    std       7,x                 ; INITALIZE CLOCK MONITOR FAIL VECTOR.
+                    std       1,x                 ; INITIALIZE ILLEGAL OP-CODE VECTOR.
+                    std       4,x                 ; INITIALIZE WATCH DOG FAIL VECTOR.
+                    std       7,x                 ; INITIALIZE CLOCK MONITOR FAIL VECTOR.
 
                     ldx       #INTABLE            ; POINT TO THE START OF THE I/O VECTOR TABLE.
                     ldy       #IOVects            ; point to the default table in ROM.
@@ -3941,12 +3860,12 @@ ToRam@@             lda       ,y                  ; Move a byte of the table fro
                     stx       PACCIE+1            ; SET ADDRESS IN INPUT EDGE INTERRUPT VECTOR.
                     stx       PACCOVF+1           ; SET ADDRESS IN PACC OVERFLOW INTERRUPT VECTOR.
                     clrd
-                    std       ONTIMLIN            ; INITALIZE THE LINE POINTERS.
+                    std       ONTIMLIN            ; INITIALIZE THE LINE POINTERS.
                     std       ONIRQLIN
                     std       ONPACLIN
 
                     ldx       UserInit
-                    jsr       ,x                  ; INITALIZE THE ACIA & SCI.
+                    jsr       ,x                  ; INITIALIZE THE ACIA & SCI.
                     jmp       MAIN                ; GO TO BASIC.
 
 ;*******************************************************************************
@@ -4047,39 +3966,17 @@ Found@@             ldx       1,x                 ; GET ADDRESS OF COMMAND.
                     ldd       #1                  ; SHOW WE EXECUTED A COMMAND.
                     rts                           ; RETURN.
 
-Table@@             fcs       'LIST'
-                    fdb       CLIST
-
-                    fcs       'RUN'
-                    fdb       CRUN
-
-                    fcs       'NEW'
-                    fdb       CNEW
-
-                    fcs       'CONT'
-                    fdb       CCONT
-
-                    fcs       'CLEAR'
-                    fdb       CCLEAR
-
-                    fcs       'ESAVE'
-                    fdb       CESAVE
-
-                    fcs       'ELOAD'
-                    fdb       CELOAD
-
-                    fcs       'LLIST'
-                    fdb       CLLIST
-
-                    fcs       'AUTOST'
-                    fdb       CAUTOST
-
-                    fcs       'NOAUTO'
-                    fdb       CNOAUTO
-
-                    fcs       'FREE'
-                    fdb       CFREE
-
+Table@@             @token    'LIST',CLIST
+                    @token    'RUN',CRUN
+                    @token    'NEW',CNEW
+                    @token    'CONT',CCONT
+                    @token    'CLEAR',CCLEAR
+                    @token    'ESAVE',CESAVE
+                    @token    'ELOAD',CELOAD
+                    @token    'LLIST',CLLIST
+                    @token    'AUTOST',CAUTOST
+                    @token    'NOAUTO',CNOAUTO
+                    @token    'FREE',CFREE
                     fcb       0                   ; END OF TABLE MARKER.
 
 ;*******************************************************************************
@@ -4260,14 +4157,10 @@ Found@@             ldx       1,x
                     jsr       ,x
                     rts
 
-Table@@             fcb       IVARTOK
-                    fdb       LIVAR
-                    fcb       SCONTOK
-                    fdb       LSCON
-                    fcb       LCONTOK
-                    fdb       LLCON
-                    fcb       ICONTOK
-                    fdb       LICON
+Table@@             @token    IVARTOK,LIVAR
+                    @token    SCONTOK,LSCON
+                    @token    LCONTOK,LLCON
+                    @token    ICONTOK,LICON
                     fcb       0                   ; END OF TABLE MARKER.
 
 ;*******************************************************************************
@@ -4456,172 +4349,92 @@ Cont@@              jsr       OUTBYTE
                     inx
                     bra       Loop@@
 
-TOKTBL              fcb       LETTOK
-                    fdb       LET
-                    fcb       READTOK
-                    fdb       READ
-                    fcb       RESTRTOK
-                    fdb       RESTORE
-                    fcb       GOSUBTOK
-                    fdb       GOSUB
-                    fcb       GOTOTOK
-                    fdb       GOTO
-                    fcb       ONTOK
-                    fdb       ON
-                    fcb       RETNTOK
-                    fdb       RETURN
-                    fcb       IFTOK
-                    fdb       IIF
-                    fcb       THENTOK
-                    fdb       THENS
-                    fcb       ELSETOK
-                    fdb       ELSES
-                    fcb       INPUTTOK
-                    fdb       INPUT
-                    fcb       PRINTTOK
-                    fdb       PRINT
-                    fcb       FORTOK
-                    fdb       FOR
-                    fcb       NEXTTOK
-                    fdb       NEXT
-                    fcb       STOPTOK
-                    fdb       STOPSS
-                    fcb       ENDTOK
-                    fdb       ENDS
-                    fcb       TRONTOK
-                    fdb       TRON
-                    fcb       TROFFTOK
-                    fdb       TROFF
-                    fcb       WHILETOK
-                    fdb       WHILE
-                    fcb       ENDWHTOK
-                    fdb       ENDWH
-                    fcb       STEPTOK
-                    fdb       STEP
-                    fcb       TOTOK
-                    fdb       TO
-                    fcb       COMMATOK
-                    fdb       COMMAC
-                    fcb       SEMITOK
-                    fdb       SEMIC
-                    fcb       MEOLTOK
-                    fdb       COLLINC
-                    fcb       IMLETTOK
-                    fdb       IMLET
-                    fcb       POKETOK
-                    fdb       POKE
-                    fcb       EQUALTOK
-                    fdb       EQ
-                    fcb       OPARNTOK
-                    fdb       OPARN
-                    fcb       CPARNTOK
-                    fdb       CPARN
-                    fcb       ANDTOK
-                    fdb       ANDS
-                    fcb       ORTOK
-                    fdb       ORS
-                    fcb       EORTOK
-                    fdb       EORS
-                    fcb       LTTOK
-                    fdb       LT
-                    fcb       GTTOK
-                    fdb       GT
-                    fcb       LTEQTOK
-                    fdb       LTEQ
-                    fcb       GTEQTOK
-                    fdb       GTEQ
-                    fcb       EQTOK
-                    fdb       EQ
-                    fcb       NOTEQTOK
-                    fdb       NOTEQ
-                    fcb       PLUSTOK
-                    fdb       PLUS
-                    fcb       MINUSTOK
-                    fdb       MINUS
-                    fcb       MULTTOK
-                    fdb       MULT
-                    fcb       DIVTOK
-                    fdb       DIV
-                    fcb       MODTOK
-                    fdb       MODS
-                    fcb       NOTTOK
-                    fdb       NOTS
-                    fcb       RTIMETOK
-                    fdb       RTIMES
-                    fcb       NEGTOK
-                    fdb       NEGS
-                    fcb       SSCNTOK
-                    fdb       SPACE
-                    fcb       DIMTOK
-                    fdb       DIM
-                    fcb       EEPTOK
-                    fdb       EEP
-                    fcb       PORTATOK
-                    fdb       PORTA
-                    fcb       PORTBTOK
-                    fdb       PORTB
-                    fcb       PORTCTOK
-                    fdb       PORTC
-                    fcb       PORTDTOK
-                    fdb       PORTD
-                    fcb       PNUMTOK
-                    fdb       POUNDSGN
-                    fcb       INBYTTOK
-                    fdb       INBYTES
-                    fcb       TIMETOK
-                    fdb       TIME
-                    fcb       ONTIMTOK
-                    fdb       ONTIME
-                    fcb       ONIRQTOK
-                    fdb       ONIRQ
-                    fcb       RETITOK
-                    fdb       RETI
-                    fcb       PACCTOK
-                    fdb       PACC
-                    fcb       ONPACTOK
-                    fdb       ONPACC
-                    fcb       SLEEPTOK
-                    fdb       SLEEP
+;*******************************************************************************
+
+TOKTBL              @token    LETTOK,LET
+                    @token    READTOK,READ
+                    @token    RESTRTOK,RESTORE
+                    @token    GOSUBTOK,GOSUB
+                    @token    GOTOTOK,GOTO
+                    @token    ONTOK,ON
+                    @token    RETNTOK,RETURN
+                    @token    IFTOK,IIF
+                    @token    THENTOK,THENS
+                    @token    ELSETOK,ELSES
+                    @token    INPUTTOK,INPUT
+                    @token    PRINTTOK,PRINT
+                    @token    FORTOK,FOR
+                    @token    NEXTTOK,NEXT
+                    @token    STOPTOK,STOPSS
+                    @token    ENDTOK,ENDS
+                    @token    TRONTOK,TRON
+                    @token    TROFFTOK,TROFF
+                    @token    WHILETOK,WHILE
+                    @token    ENDWHTOK,ENDWH
+                    @token    STEPTOK,STEP
+                    @token    TOTOK,TO
+                    @token    COMMATOK,COMMAC
+                    @token    SEMITOK,SEMIC
+                    @token    MEOLTOK,COLLINC
+                    @token    IMLETTOK,IMLET
+                    @token    POKETOK,POKE
+                    @token    EQUALTOK,EQ
+                    @token    OPARNTOK,OPARN
+                    @token    CPARNTOK,CPARN
+                    @token    ANDTOK,ANDS
+                    @token    ORTOK,ORS
+                    @token    EORTOK,EORS
+                    @token    LTTOK,LT
+                    @token    GTTOK,GT
+                    @token    LTEQTOK,LTEQ
+                    @token    GTEQTOK,GTEQ
+                    @token    EQTOK,EQ
+                    @token    NOTEQTOK,NOTEQ
+                    @token    PLUSTOK,PLUS
+                    @token    MINUSTOK,MINUS
+                    @token    MULTTOK,MULT
+                    @token    DIVTOK,DIV
+                    @token    MODTOK,MODS
+                    @token    NOTTOK,NOTS
+                    @token    RTIMETOK,RTIMES
+                    @token    NEGTOK,NEGS
+                    @token    SSCNTOK,SPACE
+                    @token    DIMTOK,DIM
+                    @token    EEPTOK,EEP
+                    @token    PORTATOK,PORTA
+                    @token    PORTBTOK,PORTB
+                    @token    PORTCTOK,PORTC
+                    @token    PORTDTOK,PORTD
+                    @token    PNUMTOK,POUNDSGN
+                    @token    INBYTTOK,INBYTES
+                    @token    TIMETOK,TIME
+                    @token    ONTIMTOK,ONTIME
+                    @token    ONIRQTOK,ONIRQ
+                    @token    RETITOK,RETI
+                    @token    PACCTOK,PACC
+                    @token    ONPACTOK,ONPACC
+                    @token    SLEEPTOK,SLEEP
                     fcb       0                   ; END OF TABLE MARKER.
 
-LFUNCTBL            fcb       FDIVTOK
-                    fdb       FDIVS
-                    fcb       CHRTOK
-                    fdb       CHRS
-                    fcb       ADCTOK
-                    fdb       ADCS
-                    fcb       ABSTOK
-                    fdb       ABS
-                    fcb       RNDTOK
-                    fdb       RND
-                    fcb       SGNTOK
-                    fdb       SGN
-                    fcb       TABTOK
-                    fdb       TABS
-                    fcb       CALLTOK
-                    fdb       CALL
-                    fcb       PEEKTOK
-                    fdb       PEEK
-                    fcb       FEEPTOK
-                    fdb       EEP
-                    fcb       HEXTOK
-                    fdb       HEX
-                    fcb       FPRTATOK
-                    fdb       PORTA
-                    fcb       FPRTBTOK
-                    fdb       PORTB
-                    fcb       FPRTCTOK
-                    fdb       PORTC
-                    fcb       FPRTDTOK
-                    fdb       PORTD
-                    fcb       FPRTETOK
-                    fdb       PORTE
-                    fcb       FTIMETOK
-                    fdb       TIME
-                    fcb       HEX2TOK
-                    fdb       HEX2
-                    fcb       FPACCTOK
-                    fdb       PACC
+LFUNCTBL            @token    FDIVTOK,FDIVS
+                    @token    CHRTOK,CHRS
+                    @token    ADCTOK,ADCS
+                    @token    ABSTOK,ABS
+                    @token    RNDTOK,RND
+                    @token    SGNTOK,SGN
+                    @token    TABTOK,TABS
+                    @token    CALLTOK,CALL
+                    @token    PEEKTOK,PEEK
+                    @token    FEEPTOK,EEP
+                    @token    HEXTOK,HEX
+                    @token    FPRTATOK,PORTA
+                    @token    FPRTBTOK,PORTB
+                    @token    FPRTCTOK,PORTC
+                    @token    FPRTDTOK,PORTD
+                    @token    FPRTETOK,PORTE
+                    @token    FTIMETOK,TIME
+                    @token    HEX2TOK,HEX2
+                    @token    FPACCTOK,PACC
 IMLET               fcb       0                   ; NO KETWORD TO PRINT FOR AN IMPLIED LET.
 COLLINC             fcs       ':'
 SEMIC               fcs       ';'
@@ -4636,7 +4449,7 @@ POUNDSGN            fcs       '#'
 
 CRUN                proc
                     jsr       NL2                 ; DO 2 CR/LF SEQUENCES.
-                    jsr       RUNINIT             ; INITALIZE RUNTIME VARIABLES.
+                    jsr       RUNINIT             ; INITIALIZE RUNTIME VARIABLES.
                     lda       #1                  ; SET THE RUN MODE FLAG.
                     sta       RUNFLAG
 
@@ -4805,18 +4618,18 @@ Go@@                jsr       INCONNE             ; GET BYTE FROM CONSOLE BUT DO
 RUNINIT             proc
                     jsr       CCLEAR              ; GO CLEAR ALL VARIABLE STORAGE.
 ?RUNINIT            ldx       STNUMS              ; GET START OF NUMERIC OPERAND STACK.
-                    stx       NUMSTACK            ; INITALIZE THE OPERAND STACK POINTER.
+                    stx       NUMSTACK            ; INITIALIZE THE OPERAND STACK POINTER.
                     ldx       STOPS               ; GET THE START OF THE OPERATOR STACK.
-                    stx       OPSTACK             ; INITALIZE THE OPREATOR STACK POINTER.
+                    stx       OPSTACK             ; INITIALIZE THE OPREATOR STACK POINTER.
                     ldx       STFORSTK            ; GET THE START OF THE FOR-NEXT STACK.
-                    stx       FORSTACK            ; INITALIZE THE FOR NEXT STACK POINTER.
+                    stx       FORSTACK            ; INITIALIZE THE FOR NEXT STACK POINTER.
                     ldx       STWHSTK             ; GET THE START OF THE WHILE STACK.
-                    stx       WHSTACK             ; INITALIZE THE WHILE STACK POINTER.
+                    stx       WHSTACK             ; INITIALIZE THE WHILE STACK POINTER.
                     ldx       STGOSTK             ; GET THE START OF THE GOSUB STACK.
                     stx       GOSTACK             ; SET THE START OF THE GOSUB STACK.
                     ldx       VAREND              ; GET THE VARIABLE END POINTER.
                     inx                           ; POINT TO THE NEXT AVAILABLE BYTE.
-                    stx       STRASTG             ; INITALIZE THE STRING/ARRAY STORAGE POINTER.
+                    stx       STRASTG             ; INITIALIZE THE STRING/ARRAY STORAGE POINTER.
                     clr       PRINTPOS            ; SET THE CURRENT PRINT POSITION TO 0.
                     lda       #10                 ; SET COUNT FOR BREAK CHECK.
                     sta       BREAKCNT
@@ -4854,7 +4667,7 @@ Init@@              jsr       INITVARS            ; INITIALIZE EVERYTHING.
 ;*******************************************************************************
 
 CCLEAR              proc
-                    jsr       ?RUNINIT            ; GO INITALIZE ALL STACKS ETC.
+                    jsr       ?RUNINIT            ; GO INITIALIZE ALL STACKS ETC.
 ;                   bra       CCLEAR3
 
 ;*******************************************************************************
@@ -5301,7 +5114,6 @@ RENDWH              proc
                     bne       Go@@                ; YES. GO GET THE ADDRESS OF THE WHILE STATEMENT.
                     lda       #ENDWHERR           ; NO. GET ENDWHILE ERROR.
                     jmp       RPTRERR             ; REPORT THE ERROR.
-
 Go@@                pshy                          ; SAVE THE IP IN CASE THE WHILE TEST FAILS.
                     ldy       ,x                  ; GET THE IP POINTER TO THE WHILE EXPRESSION.
                     jsr       DONEXP              ; YES. GO EVALUATE A NUMERIC EXPRESSION.
@@ -5312,7 +5124,6 @@ Go@@                pshy                          ; SAVE THE IP IN CASE THE WHIL
                     inx:2                         ; TAKE ADDRESS OFF OF WHILE STACK.
                     stx       WHSTACK             ; SAVE STACK POINTER.
                     bra       Done@@              ; GO TO INTERPRET LOOP.
-
 Exec@@              ins:2                         ; REMOVE POINTER TO STATEMENT AFTER "ENDWH" FROM STACK.
 Done@@              rts                           ; GO EXECUTE LINES TILL "ENDWH".
 
@@ -5399,7 +5210,6 @@ RPORTA              proc
                     beq       Done@@              ; NO. GO PUT THE VALUE IN THE PORT.
                     lda       #PRTASERR           ; YES. ERROR.
                     jmp       RPTRERR             ; REPORT THE ERROR.
-
 Done@@              pulx                          ; POINT TO THE DICTIONARY ENTRY.
                     stb       ,x                  ; STORE VALUE.
                     rts                           ; BACK TO MAIN INTERPRET LOOP.
@@ -6189,7 +5999,6 @@ RONPACC             proc
                     bls       Go@@                ; YES. ARG. OK.
 Fail@@              lda       #INTMODER           ; NO. GET ERROR CODE.
                     jmp       RPTRERR
-
 Go@@                lda       #$10                ; GET BIT TO ENABLE INTERRUPT.
                     tstb                          ; WAS THE ARGUMENT 0?
                     beq       EnableInts@@        ; YES. GO ENABLE INTS. ON EACH COUNT.
@@ -6202,7 +6011,6 @@ EnableInts@@        ldx       IOBaseV
                     clr       PACTL,x             ; TURN OFF THE PULSE ACCUMULATOR.
                     std       ONPACLIN            ; CLEAR POINTER TO LINE NUMBER.
                     bra       Done@@              ; GO CLEAN UP & RETURN.
-
 SetMode@@           cpd       #4                  ; IS THE ARGUMENT IN RANGE?
                     bhi       Fail@@              ; YES. REPORT AN ERROR.
                     addb      #3                  ; GET BIT TO ENABLE PACC.
@@ -6301,7 +6109,6 @@ PushOpStackReturn   proc
                     lda       #MSTKOERR           ; YES.
                     sta       ERRCODE
                     jmp       RPTRERR             ; GO REPORT THE ERROR.
-
 Save@@              stx       NUMSTACK            ; SAVE THE STACK POINTER.
                     std       ,x                  ; PUT THE VALUE ON THE STACK.
                     rts                           ; RETURN.
@@ -6322,7 +6129,6 @@ CALCSUB             proc
                     bne       Go@@                ; YES. CONTINUE.
                     lda       #UNDIMERR           ; NO. UNDIMENTIONED ARRAY REFERENCE.
 Fail@@              jmp       RPTRERR             ; GO REPORT THE ERROR.
-
 Go@@                ldb       #4                  ; SET POINTER TO START OF SUBSCRIPT EXPRESSION.
                     aby
                     pshx                          ; SAVE THE POINTER TO THE ARRAY STORAGE AREA.
@@ -6334,7 +6140,6 @@ Go@@                ldb       #4                  ; SET POINTER TO START OF SUBS
                     bls       Done@@              ; YES. CONTINUE.
                     lda       #SUBORERR           ; NO. SUBSCRIPT OUT OF RANGE ERROR.
                     bra       Fail@@              ; GO REPORT IT.
-
 Done@@              inx:2                         ; BYPASS THE SUBSCRIPT LIMIT.
                     rts
 
@@ -6425,7 +6230,6 @@ PSHOP               proc
                     bne       Go@@                ; NO. CONTINUE.
                     lda       #MSTKOERR           ; YES.
                     jmp       RPTRERR             ; GO REPORT THE ERROR.
-
 Go@@                stx       OPSTACK
                     sta       ,x                  ; PUT IT ON THE STACK.
 Loop@@              ldx       OPSTACK
@@ -6447,7 +6251,6 @@ Loop@@              ldx       OPSTACK
                     inx:2                         ; YES. KNOCK BOTH OPERATORS OFF THE STACK.
                     stx       OPSTACK             ; SAVE THE STACK POINTER.
 Done@@              rts                           ; RETURN.
-
 Save@@              stb       1,x                 ; PUT IT ON THE STACK.
                     inx                           ; UPDATE THE STACK POINTER.
                     stx       OPSTACK
@@ -6502,28 +6305,24 @@ Go@@                tab                           ; PUT THE OFFSET IN B.
                     ldx       ,x                  ; GET THE ADDRESS.
                     jmp       ,x                  ; GO DO THE OPERATION & RETURN.
 
-HEIR7               equ       *
-                    fdb       RINDIR
+;-------------------------------------------------------------------------------
+
+HEIR7               fdb       RINDIR
                     fdb       RNOT
                     fdb       RNEG
-HEIR6               equ       *
-                    fdb       RPWR
-HEIR5               equ       *
-                    fdb       RMULT
+HEIR6               fdb       RPWR
+HEIR5               fdb       RMULT
                     fdb       RDIV
                     fdb       RMOD
-HEIR4               equ       *
-                    fdb       RPLUS
+HEIR4               fdb       RPLUS
                     fdb       RMINUS
-HEIR3               equ       *
-                    fdb       RLT
+HEIR3               fdb       RLT
                     fdb       RGT
                     fdb       RLTEQ
                     fdb       RGTEQ
                     fdb       REQ
                     fdb       RNOTEQ
-HEIR2               equ       *
-                    fdb       RAND
+HEIR2               fdb       RAND
                     fdb       RORV
                     fdb       REOR
 
@@ -6594,7 +6393,6 @@ RDIVS               proc
                     bne       Go@@                ; NO. CONTINUE.
                     lda       #ZDIVERR            ; YES. GET DIVIDE BY ZERO ERROR.
                     jmp       RPTRERR             ; GO REPORT IT.
-
 Go@@                bpl       Pos@@               ; IF POSITIVE IT'S OK.
                     jsr       RNEG                ; IF NOT MAKE IT POSITIVE.
 Pos@@               tst       2,x                 ; IS THE DIVIDEND NEGATIVE?
@@ -6795,7 +6593,6 @@ RFEEP               proc
                     bls       Go@@                ; YES. GO GET THE VALUE.
                     lda       #EESUBERR           ; NO. SUBSCRIPT ERROR.
 RFEEP2              jmp       RPTRERR             ; REPORT THE ERROR.
-
 Go@@                lsld                          ; MULT THE SUBSCRIPT BY 2.
                     addd      #EEPBASAD           ; ADD IN THE BASE ADDRESS OF THE EEPROM ADDRESS.
                     xgdx                          ; PUT THE ADDRESS IN X.
@@ -6953,12 +6750,11 @@ OUTBYTE             proc
 OUTBYTE1            ldb       DEVNUM              ; GET THE CURRENT DEVICE NUMBER.
                     aslb                          ; MULT BY 2.
                     abx                           ; POINT TO THE ADDRESS OF THE OUTPUT ROUTINE.
-                    ldx       ,x                  ; GET THE ADDRESS. HAS THE VECTOR BEEN INITALIZED?
+                    ldx       ,x                  ; GET THE ADDRESS. HAS THE VECTOR BEEN INITIALIZED?
                     bne       Done@@              ; YES. GO OUTPUT THE CHARACTER.
                     clr       DEVNUM              ; NO. RESET TO DEVICE #0.
-                    lda       #UNINIERR           ; GO REPORT AN UNINITALIZED I/O VECTOR ERROR.
+                    lda       #UNINIERR           ; GO REPORT AN UNINITIALIZED I/O VECTOR ERROR.
                     jmp       RPTRERR
-
 Done@@              jsr       ,x                  ; GO OUTPUT THE CHARACTER.
                     pulx                          ; RESTORE X.
                     pulb                          ; RESTORE B.
@@ -6973,7 +6769,7 @@ INBYTE              proc
                     bra       OUTBYTE1            ; GO USE THE SAME CODE AS OUTBYTE.
 
           #if * > $FF00
-                    #Fatal    BASIC Is Too Large
+                    #Fatal    BASIC is too large
           #endif
                     org       $FF00
 
@@ -7075,9 +6871,9 @@ InitSCI             proc
                     lda       #$0C                ; ENABLE THE TRANSMITER & RECEIVER.
                     sta       SCCR2,x
                     lda       #$11                ; GET THE XON CHARACTER (CONTROL-Q).
-                    sta       XONCH               ; INITALIZE THE XON REGISTER.
+                    sta       XONCH               ; INITIALIZE THE XON REGISTER.
                     lda       #$13                ; GET THE XOFF CHARACTER (CONTROL-S).
-                    sta       XOFFCH              ; INITALIZE THE XOFF CHARACTER.
+                    sta       XOFFCH              ; INITIALIZE THE XOFF CHARACTER.
                     pulx
                     rts                           ; RETURN.
 
@@ -7108,7 +6904,7 @@ Send@@              bra       SCIOUT              ; SEND THE CHARACTER TO THE PR
 ;                   include   'vectors.mod'
                     title     Config/Reset/Interrupt Vectors
           #if * > $FFA0
-                    #Fatal    BASIC Is Too Large
+                    #Fatal    BASIC is too large
           #endif
                     org       $FFA0
 
@@ -7140,7 +6936,7 @@ TimeVal             dw        62500               ; value used for generating 'T
 UserInit            dw        IODevInit           ; Used to initialize console/other hardware.
 DFLOPADR            dw        $4000               ; Address of flip-flop used to connect the HC11 SCI
                                                   ; to the host port connector.
-                    org       ROMBEG+ROMSIZE-{21*2}  ; START OF VECTOR TABLE.
+                    org       ROMBEG+ROMSIZE-{2*21}  ; START OF VECTOR TABLE.
                     dw        SCISS               ; SCI SERIAL SYSTEM
                     dw        SPITC               ; SPI TRANSFER COMPLETE
                     dw        PACCIE              ; PULSE ACCUMULATOR INPUT EDGE
@@ -7165,12 +6961,27 @@ DFLOPADR            dw        $4000               ; Address of flip-flop used to
 ;                   opt       nol
                     end       MAIN
 
+;*******************************************************************************
+
 ?                   macro
           #ifz HC11
-                    #Hint     Verification~'..................................................................................................................................'.1.{:width-75}~ 8174 bytes, RAM:.. 208, CRC: $18D0
+                    #temp     8174
+                    #temp1    208
+                    #temp2    $18D0
+            #ifdef BUGFIX
+                    #temp     8176
+                    #temp2    $544B
+            #endif
           #else
-                    #Hint     Verification~'..................................................................................................................................'.1.{:width-75}~ 8164 bytes, RAM:.. 208, CRC: $3FEB
+                    #temp     8164
+                    #temp1    208
+                    #temp2    $3FEB
+            #ifdef BUGFIX
+                    #temp     8166
+                    #temp2    $39D0
+            #endif
           #endif
+                    #Hint     Verification~'..................................................................................................................................'.1.{:width-75}~ {:temp} bytes, RAM:.. {:temp1}, CRC: {:temp2(h)}
                     endm
 
                     @?
