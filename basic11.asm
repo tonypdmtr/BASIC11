@@ -118,7 +118,7 @@ SVAREND             next      :temp,2
 AUTOSTF             next      :temp
 SSTART              next      :temp
 
-;***** hc11 (device dependant) defines *****/
+;***** hc11 (device dependant) defines *****
 
 EEPBASAD            equ       $B600               ; EEPROM base address
 MAXEESUB            equ       255                 ; maximum EEP subscript
@@ -152,7 +152,7 @@ PACTL               equ       $26                 ; PACC control register
 TFLG2               equ       $25                 ; TIMER Flag #2 register
 INIT                equ       $3D                 ; INIT (Base address of RAM & I/O Regs) Register
 
-;***** misc. defines *****/
+;***** misc. defines *****
 
 EOL                 equ       13                  ; end of line marker
 CR                  equ       13                  ; same as EOL
@@ -177,7 +177,7 @@ FORSLEN             equ       80                  ; FOR..NEXT stack length
 WHSLEN              equ       16                  ; WHILE..ENDWH stack length
 GOSLEN              equ       16                  ; GOSUB stack length
 
-;***** define error codes *****/
+;***** define error codes *****
 
                     #temp     1
 LINRANG             next      :temp               ; line number range error
@@ -977,7 +977,7 @@ Numeric@@           bra       NUMERIC
 ;              xlate()
 ; translate the input buffer into tokenized
 ; form placing the results into tknbuf
-;******************************************/
+;******************************************
 ;
 ; *xlate()
 ; *{
@@ -1175,7 +1175,7 @@ Token@@             ldb       #SSCNTOK
 ; advanced to point beyond *lit. the
 ; string pointed to by lit must be null
 ; terminated.
-;***************************************/
+;***************************************
 ;
 ; *match(lit)
 ; *char *lit;
@@ -1194,7 +1194,7 @@ Token@@             ldb       #SSCNTOK
 ;               streq()
 ; compare srt1 to str2. str2 must be null
 ; terminated.
-;*****************************************/
+;*****************************************
 ;
 ; *streq(str1,str2)
 ; *char *str1,*str2;
@@ -1292,7 +1292,7 @@ PUTTOK              proc
 
 ; *<><><><><><> NOTE: FUNCTION PERFORMED IN 'XLATE' <><><><><><>
 ;
-;***** xmideol() *****/
+;***** xmideol() *****
 ;
 ; *xmideol()
 ; *{
@@ -1301,7 +1301,7 @@ PUTTOK              proc
 ; return;
 ; *}
 ;
-;****** common code for GOSUB and GOTO *****/
+;****** common code for GOSUB and GOTO *****
 ;
 ; *xgo(gotok)
 ; *char gotok;
@@ -1327,7 +1327,7 @@ XGOTO               proc
 
 ; *<><><><><><> ROUTINE NOT NEEDED <><><><><><>
 ;
-;***** GOSUB *****/
+;***** GOSUB *****
 ;
 ; *xgosub()
 ; *{
@@ -1338,14 +1338,14 @@ XGOTO               proc
 ;
 ; *<><><><><><> ROUTINE NOT NEEDED <><><><><><>
 ;
-;***** GOTO *****/
+;***** GOTO *****
 ;
 ; *xgoto()
 ; *{
 ; xgo(GOTOTOK);
 ; return;
 ; *}
-;***** RETURN *****/
+;***** RETURN *****
 ;
 ; *xreturn()
 ; *{
@@ -1353,7 +1353,7 @@ XGOTO               proc
 ; return;
 ; *}
 ;
-;***** STOP *****/
+;***** STOP *****
 ;
 ; *xstop()
 ; *{
@@ -1361,7 +1361,7 @@ XGOTO               proc
 ; return;
 ; *}
 ;
-;***** END *****/
+;***** END *****
 ;
 ; *xend()
 ; *{
@@ -1369,7 +1369,7 @@ XGOTO               proc
 ; return;
 ; *}
 ;
-;***** TRON *****/
+;***** TRON *****
 ;
 ; *xtron()
 ; *{
@@ -1377,7 +1377,7 @@ XGOTO               proc
 ; return;
 ; *}
 ;
-;***** TROFF *****/
+;***** TROFF *****
 ;
 ; *xtroff()
 ; *{
@@ -1397,7 +1397,7 @@ XSLEEP              proc
 XRTIME              proc
                     rts                           ; NULL FUNCTIONS BECAUSE TOKEN PLACEMENT IS DONE IN
                                                   ; XLATE FUNCTION.
-;***** REM *****/
+;***** REM *****
 ;
 ; *xrem()
 ; *{
@@ -1413,7 +1413,7 @@ XRTIME              proc
 ; *}
 ;
 ;
-;***** xdata() *****/
+;***** xdata() *****
 ;
 ; *xdata()
 ; *{
@@ -1457,7 +1457,7 @@ XPORTD              proc
                     ldb       #NUM                ; WE'RE XLATING A NUMERICAL STATEMENT.
                     bra       ASIGNMT1            ; GO DO IT LIKE AN ASIGNMENT STATEMENT.
 
-;***** LET *****/
+;***** LET *****
 ;
 ; *xlet()
 ; *{
@@ -1465,7 +1465,7 @@ XPORTD              proc
 ; return;
 ; *}
 ;
-;***** implied LET *****/
+;***** implied LET *****
 ;
 ; *ximplet()
 ; *{
@@ -1473,7 +1473,7 @@ XPORTD              proc
 ; return;
 ; *}
 ;
-;***** common code for explicit & implicit LET *****/
+;***** common code for explicit & implicit LET *****
 ;
 ; *letcom(letok)
 ; *short letok;
@@ -1491,7 +1491,7 @@ XIMPLET             proc
 ;XLET1              jmp       ASIGNMT
 
 ;*******************************************************************************
-;***** asignmt() *****/
+;***** asignmt() *****
 ;
 ; *asignmt()
 ; *{
@@ -1519,7 +1519,7 @@ Go@@                lda       #EQUALTOK
 ;                   bra       XEXPRES
 
 ;*******************************************************************************
-;***** xexpres() *****/
+;***** xexpres() *****
 ;
 ; *xexpres(type)
 ; *short type;
@@ -1672,7 +1672,7 @@ Tokenize@@          jsr       PUTTOK
                     jmp       Loop@@
 
 ;*******************************************************************************
-;***** cknumop() *****/
+;***** cknumop() *****
 ;
 ; *cknumop()
 ; *{
@@ -1693,7 +1693,7 @@ CKOP                jsr       TBLSRCH
 Done@@              rts
 
 ;*******************************************************************************
-;***** ckbolop() *****/
+;***** ckbolop() *****
 ;
 ; *ckbolop()
 ; *{
@@ -1707,7 +1707,7 @@ CKBOLOP             proc
                     ldx       #BOLOPTBL
                     bra       CKOP
 
-;***** cklogop() *****/
+;***** cklogop() *****
 ;
 ; *cklogop()
 ; *{
@@ -1792,7 +1792,7 @@ NOTS                fcs       'NOT'
                     title     BASICLB3
 
 ;*******************************************************************************
-;***** getvar *****/
+;***** getvar *****
 ;
 ; *tries to make a variable out of what is currently being pointed to by
 ; *'ibufptr' and places it into the variable symbol table if it is not
@@ -1885,7 +1885,7 @@ Done@@              ins:4
                     rts
 
 ;*******************************************************************************
-;***** chcktype *****/
+;***** chcktype *****
 ;
 ; *chcktyp()
 ; *{
@@ -1905,7 +1905,7 @@ CHCKTYP             proc
 Done@@              rts                           ; RETURN.
 
 ;*******************************************************************************
-;***** findvar *****/
+;***** findvar *****
 ;
 ; *findvar(vartype,varname)
 ; *short vartype;
@@ -1970,7 +1970,7 @@ Done@@              ldd       #-1
 ; *}
 ;
 ;*******************************************************************************
-;***** putvar *****/
+;***** putvar *****
 ;
 ; *putvar(vartype,varname)
 ; *short vartype;
@@ -2043,7 +2043,7 @@ Fail@@              lda       #ILTOKERR
 ?ErrHook            jmp       RPTERR
 
 ;*******************************************************************************
-;***** getcon() *****/
+;***** getcon() *****
 ;
 ; *getcon()
 ; *{
@@ -2098,7 +2098,7 @@ Loop@@              lda       ,x
                     rts
 
 ;*******************************************************************************
-;***** getdeci() *****/
+;***** getdeci() *****
 ;
 ; *getdeci()
 ; *{
@@ -2143,7 +2143,7 @@ Loop@@              lda       ,x
                     rts
 
 ;*******************************************************************************
-;***** gethex() *****/
+;***** gethex() *****
 ;
 ; *gethex()
 ; *{
@@ -2209,7 +2209,7 @@ Overflow@@          lda       #HEXOVERR
                     bra       CHCKERR
 
 ;*******************************************************************************
-;***** hexdig() *****/
+;***** hexdig() *****
 ;
 ; *hexdig(c)
 ; *char c;
@@ -2234,7 +2234,7 @@ Done@@              clc
                     rts
 
 ;*******************************************************************************
-;***** getscon *****/
+;***** getscon *****
 ;
 ; *getscon()
 ; *{
@@ -2292,7 +2292,7 @@ Quote@@             jsr       PUTTOK
                     title     BASICLB5
 
 ;*******************************************************************************
-;***** getfun() *****/
+;***** getfun() *****
 ;
 ; *getfun()
 ; *{
@@ -2359,7 +2359,7 @@ XPOKE               proc
 ;                   bra       BNUMFUN
 
 ;*******************************************************************************
-;***** xfdiv() *****/
+;***** xfdiv() *****
 ;
 ; *xfdiv()
 ; *{
@@ -2381,55 +2381,55 @@ BNUMFUN             proc
                     puly
                     rts
 
-;***** xchrs *****/
+;***** xchrs *****
 ;
 ; *xchrs()
 ; *{
 ; return(unumfun(CHRTOK));
 ; *}
 ;
-;***** xabs() *****/
+;***** xabs() *****
 ;
 ; *xabs()
 ; *{
 ; return(unumfun(ABSTOK));
 ; *}
 ;
-;***** xrnd() *****/
+;***** xrnd() *****
 ;
 ; *xrnd()
 ; *{
 ; return(unumfun(RNDTOK));
 ; *}
 ;
-;***** xsgn() *****/
+;***** xsgn() *****
 ;
 ; *xsgn()
 ; *{
 ; return(unumfun(SGNTOK));
 ; *}
 ;
-;***** xtab() *****/
+;***** xtab() *****
 ;
 ; *xtab()
 ; *{
 ; return(unumfun(TABTOK));
 ; *}
 ;
-;***** xadc() *****/
+;***** xadc() *****
 ;
 ; *xadc()
 ; *{
 ; return(unumfun(ADCTOK));
 ; *}
-;***** xcall() *****/
+;***** xcall() *****
 ;
 ; *xcall()
 ; *{
 ; return(unumfun(CALLTOK));
 ; *}
 ;
-;***** unumfun() *****/
+;***** unumfun() *****
 ;
 ; *unumfun(token)  common code for a uinary numerical function
 ; *short token;
@@ -2463,7 +2463,7 @@ UNUMFUN             proc
                     rts
 
 ;*******************************************************************************
-;***** dofunct() *****/
+;***** dofunct() *****
 ;
 ; *dofunct(functok,nargs,type)
 ; *short functok,nargs,*type;
@@ -2554,7 +2554,7 @@ XTIMEF              proc
                     title     BASICLB4
 
 ;*******************************************************************************
-;***** xon *****/
+;***** xon *****
 ;
 ; *xon()
 ; *{
@@ -2656,7 +2656,7 @@ GETARG              proc
                     jmp       BLANKS              ; SKIP BLANKS AFTER COMMA AND RETURN.
 
 ;*******************************************************************************
-;***** xif() *****/
+;***** xif() *****
 ;
 ; *xif()
 ; *{
@@ -2767,7 +2767,7 @@ THENS               fcs       'THEN'
 ELSES               fcs       'ELSE'
 
 ;*******************************************************************************
-;***** xfor() *****/
+;***** xfor() *****
 ;
 ; *xfor()
 ; *{
@@ -2852,7 +2852,7 @@ TO                  fcs       'TO'
 STEP                fcs       'STEP'
 
 ;*******************************************************************************
-;***** xnext() *****/
+;***** xnext() *****
 ;
 ; *xnext()
 ; *{
@@ -2872,7 +2872,7 @@ XNEXT               proc
 Done@@              rts
 
 ;*******************************************************************************
-;***** xprint() *****/
+;***** xprint() *****
 ;
 ; *xprint()
 ; *{
@@ -2954,7 +2954,7 @@ Go@@                lda       #COMMATOK           ; GET THE COMMA TOKEN.
                     rts                           ; RETURN.
 
 ;*******************************************************************************
-;***** xinput() *****/
+;***** xinput() *****
 ;
 ; *xinput()
 ; *{
@@ -2988,7 +2988,7 @@ XINPUT              proc
                     jmp       RPTERR
 
 ;*******************************************************************************
-;***** inreadcm() *****/
+;***** inreadcm() *****
 ;
 ; *inreadcm()
 ; *{
@@ -3043,7 +3043,7 @@ XINBYTE             proc
                     jsr       BLANKS              ; SKIP BLANKS AFTER COMMA.
                     jmp       GETVAR              ; GO TRY TO GET A VARIABLE.
 
-;***** xread *****/
+;***** xread *****
 ;
 ; *xread()
 ; *{
@@ -3052,7 +3052,7 @@ XINBYTE             proc
 ; return;
 ; *}
 ;
-;***** xrestore() *****/
+;***** xrestore() *****
 ;
 ; *xrestore()
 ; *{
@@ -3060,7 +3060,7 @@ XINBYTE             proc
 ; return;
 ; *}
 ;
-;***** xwhile() *****/
+;***** xwhile() *****
 ;
 ; *xwhile()
 ; *{
@@ -3078,7 +3078,7 @@ XWHILE              proc
                     jmp       XEXPRES
 
 ;*******************************************************************************
-;***** xendwh() *****/
+;***** xendwh() *****
 ;
 ; *xendwh()
 ; *{
@@ -3092,7 +3092,7 @@ XTIME               proc
                     jmp       ASIGNMT1            ; GO DO ASSIGNMENT STATEMENT.
 
 ;*******************************************************************************
-;***** rpterr() *****/
+;***** rpterr() *****
 ;
 ; *rpterr()
 ; *{
@@ -3171,7 +3171,7 @@ BREAKS              fcc       'BREAK'
 INLINE              fcs       ' IN LINE # '
           #ifz HC11
 ;*******************************************************************************
-;***** outdeci() *****/
+;***** outdeci() *****
 ;
 ; *outdeci(num)
 ; *short num;
@@ -3293,7 +3293,7 @@ OUTDECI4            ldd       1,y                 ; GET CURRENT DIVISOR.
 ;                   include   'leditor.mod'
                     title     LEDITOR
 
-;***** storlin() *****/
+;***** storlin() *****
 ;
 ; *storlin()
 ; *{
@@ -3381,7 +3381,7 @@ Go@@                bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
                     bra       Done@@              ; RETURN.
 
 ;*******************************************************************************
-;***** closespc() *****/        close up space in the BASIC buffer
+;***** closespc() *****        close up space in the BASIC buffer
 ;
 ; *closespc(bytes,ptr)
 ; *char bytes,*ptr;
@@ -3414,7 +3414,7 @@ Done@@              stx       BASEND              ; SAVE THE NEW 'END OF BASIC P
                     rts                           ; RETURN.
 
 ;*******************************************************************************
-;***** findline() *****/        return pointer to line number or next
+;***** findline() *****        return pointer to line number or next
 ;                                   highest line number
 ; *findline(linenum)
 ; *int linenum;
@@ -3471,7 +3471,7 @@ Loop@@              cpx       BASEND
 Done@@              rts
 
 ;*******************************************************************************
-;***** insrtlin() *****/
+;***** insrtlin() *****
 ;
 ; *insrtlin(ptr)
 ; *char *ptr;
@@ -3493,7 +3493,7 @@ INSRTLIN            proc
                     bra       PUTLINE
 
 ;*******************************************************************************
-;***** openspc() *****/         open space in program buffer
+;***** openspc() *****         open space in program buffer
 ;
 ; *openspc(bytes,ptr)
 ; *char bytes,*ptr;
@@ -3545,7 +3545,7 @@ Done@@              pulx:3
                     rts
 
 ;*******************************************************************************
-;***** putline() *****/         move line from token buffer to program
+;***** putline() *****         move line from token buffer to program
 ;                                   buffer
 ; *putline(cptr)
 ; *char *cptr;
@@ -3576,7 +3576,7 @@ Loop@@              lda       ,y
                     rts
 
 ;*******************************************************************************
-;***** apendlin() *****/        append line to end of program buffer
+;***** apendlin() *****        append line to end of program buffer
 ;
 ; *apendlin()
 ; *{
@@ -3609,7 +3609,7 @@ Fail@@              lda       #OMEMERR
                     jmp       RPTERR
 
 ;*******************************************************************************
-;***** repline() *****/         replace line in buffer
+;***** repline() *****         replace line in buffer
 ;
 ; *repline(ptr)
 ; *char *ptr;
@@ -3723,7 +3723,7 @@ DecCount            proc
                     title     Inits
 
 ;*******************************************************************************
-;***** initvars() *****/
+;***** initvars() *****
 ;
 ; *initvars()
 ; *{
@@ -3930,7 +3930,7 @@ PACCINT             proc
                     title     COMMAND1
 
 ;*******************************************************************************
-;***** chckcmds() *****/
+;***** chckcmds() *****
 ;
 ; *chckcmds()
 ; *{
@@ -3980,7 +3980,7 @@ Table@@             @token    'LIST',CLIST
                     fcb       0                   ; END OF TABLE MARKER.
 
 ;*******************************************************************************
-;***** clist() *****/
+;***** clist() *****
 ;
 ; *clist()
 ; *{
@@ -4116,7 +4116,7 @@ CLIST9              jsr       NL
                     bra       Loop@@
 
 ;*******************************************************************************
-;***** lvarcon() *****/
+;***** lvarcon() *****
 ;
 ; *lvarcon()
 ; *{
@@ -4164,7 +4164,7 @@ Table@@             @token    IVARTOK,LIVAR
                     fcb       0                   ; END OF TABLE MARKER.
 
 ;*******************************************************************************
-;***** livar() *****/
+;***** livar() *****
 ;
 ; *livar()
 ; *{
@@ -4205,7 +4205,7 @@ Loop@@              lda       ,x
                     rts
 
 ;*******************************************************************************
-;***** licon() *****/
+;***** licon() *****
 ;
 ; *licon()
 ; *{
@@ -4225,7 +4225,7 @@ LICON               proc
                     bra       ?LFCON
 
 ;*******************************************************************************
-;***** lscon() *****/
+;***** lscon() *****
 ;
 ; *lscon()
 ; *{
@@ -4245,7 +4245,7 @@ LSCON               proc
                     bra       ?LFCON
 
 ;*******************************************************************************
-;***** llcon *****/
+;***** llcon *****
 ;
 ; *llcon()
 ; *{
@@ -4266,7 +4266,7 @@ LLCON               proc
                     rts
 
 ;*******************************************************************************
-;***** lkeyword *****/
+;***** lkeyword *****
 ;
 ; *lkeyword()
 ; *{
