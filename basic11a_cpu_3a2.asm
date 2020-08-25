@@ -4035,8 +4035,7 @@ DELLINE1            bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
 ;
 CLOSESPC            equ       *                   ; ENTERED WITH
                     pshy                          ; SAVE THE CURRENT VALUE OF Y.
-                    pshx                          ; TRANSFER X TO Y BY... PUSHING X AND THEN
-                    puly                          ; PULLING Y.
+                    txy                           ; TRANSFER X TO Y
                     aby                           ; ADD THE LENGTH TO Y.
 CLOSESP1            cpy       BASEND              ; HAVE WE MOVED ALL THE BYTES?
                     bhs       CLOSESP2            ; YES. RETURN.
