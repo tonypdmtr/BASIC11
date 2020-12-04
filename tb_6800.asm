@@ -157,8 +157,7 @@ il_jumptable        fdb       IL_BBR              ; 0x40-0x5f: backward branch
 
 sub_177             proc
                     bsr       IL_SP               ; pop word into A:B
-                    sta       IL_temp             ; save into IL_temp
-                    stb       IL_temp+1
+                    std       IL_temp             ; save into IL_temp
                     jmp       push_payload        ; push value on return stack
 
 ;*******************************************************************************
@@ -168,8 +167,7 @@ sub_177             proc
 
 sub_180             proc
                     jsr       get_payload         ; extract stored value on return stack
-                    lda       IL_temp             ; get this value
-                    ldb       IL_temp+1
+                    ldd       IL_temp             ; get this value
                     bra       expr_push_word      ; push on expr_stack
 
 ;*******************************************************************************
@@ -338,12 +336,10 @@ Loop@@              inx                           ; point to next address
 ; IL instruction MT: clear program
 
 IL_MT               proc
-                    lda       start_prgm          ; load start area
-                    ldb       start_prgm+1
+                    ldd       start_prgm          ; load start area
                     addb      SSS                 ; add spare area after end of program
                     adca      #0
-                    sta       end_prgm            ; save as end of program
-                    stb       end_prgm+1
+                    std       end_prgm            ; save as end of program
                     ldx       start_prgm          ; get addr of start of program
                     clr       ,x                  ; clear line number (means end)
                     clr       1,x
@@ -417,8 +413,7 @@ CommonError         proc
                     jsr       OUT_V               ; emit exclamation mark
                     lda       #rnd_seed           ; reinitialize stack top
                     sta       expr_stack_top
-                    ldb       il_pc+1             ; load IL PC into A:B
-                    lda       il_pc
+                    ldd       il_pc               ; load IL PC into A:B
                     subb      IL_baseaddr+1       ; subtract origin of interpreter
                     sbca      IL_baseaddr
                     jsr       emit_number         ; print instruction of IL
@@ -608,8 +603,7 @@ Loop@@              bsr       fetch_basicchar     ; get and consume this char
                     andb      #$F                 ; mask out low nibble (0...9)
                     addb      IL_temp+1           ; add into temp
                     adca      #0
-                    sta       IL_temp
-                    stb       IL_temp+1
+                    std       IL_temp
                     bsr       get_nchar           ; get next char
                     bcs       Loop@@              ; loop as long as digit found
                     lda       IL_temp             ; push A:B on expr_stack (B is still low byte)
@@ -709,8 +703,7 @@ IL_AD               proc
                     lda       2,x
                     adca      ,x
 
-expr_save_pop       sta       2,x                 ; store A:B in NOS and pop further byte
-                    stb       3,x
+expr_save_pop       std       2,x                 ; store A:B in NOS and pop further byte
 j_expr_pop_byte     jmp       expr_pop_byte
 
 ;*******************************************************************************
@@ -747,11 +740,10 @@ Cont@@              dec       IL_temp             ; decrement counter
 
 IL_FV               proc
                     bsr       j_expr_pop_byte     ; get byte (variable address into zero page)
-                    stb       IL_temp+1           ; make pointer into var table
-                    clr       IL_temp
+                    clra
+                    std       IL_temp             ; make pointer into var table
                     ldx       IL_temp
-                    lda       ,x                  ; get word indexed by X into A:B
-                    ldb       1,x
+                    ldd       ,x                  ; get word indexed by X into A:B
                     jmp       expr_push_word      ; push it onto expr_stack
 
 ;*******************************************************************************
@@ -761,12 +753,10 @@ IL_SV               proc
                     ldb       #3
                     bsr       expr_check_nbytes   ; validate stack contains var index byte
                                                   ; and data word. drop single byte
-                    ldb       1,x                 ; get low byte of data in B
+                    ldd       ,x                  ; data in D
                     clr       1,x                 ; clear this to build word index to var
-                    lda       ,x                  ; get high byte of data in A
                     ldx       1,x                 ; load index into variable table
-                    sta       ,x                  ; save A:B into variable
-                    stb       1,x
+                    std       ,x                  ; save A:B into variable
 
 j_IL_SP             jmp       IL_SP               ; pop word off stack
 
@@ -914,22 +904,24 @@ IL_SB               proc
 
 IL_RB               proc
                     ldx       #basicptr_save
-
 loc_4B3             lda       1,x                 ; is it into the input line area?
                     cmpa      #$80
                     bcc       swap_bp
                     lda       ,x
                     bne       swap_bp             ; no, do swap with save location
                     ldx       basic_ptr
-                    bra       loc_4CB
+                    stx       basicptr_save       ; store old basic pointer into save
+                    rts
 
-swap_bp             ldx       basic_ptr           ; get basic pointer
+;*******************************************************************************
+
+swap_bp             proc
+                    ldx       basic_ptr           ; get basic pointer
                     lda       basicptr_save       ; move saved pointer to basic ptr
                     sta       basic_ptr
                     lda       basicptr_save+1
                     sta       basic_ptr+1
-
-loc_4CB             stx       basicptr_save       ; store old basic pointer into save
+                    stx       basicptr_save       ; store old basic pointer into save
                     rts
 
 ;*******************************************************************************
@@ -973,9 +965,10 @@ push_payload        proc
                     suba      IL_temp+1
                     lda       ,x
                     sbca      IL_temp
-                    bcs       locret_519          ; is still space available?
+                    bcs       Done@@              ; is still space available?
                                                   ; yes, exit
-j2_error            jmp       CommonError         ; no error
+?CommonError        jmp       CommonError         ; no error
+Done@@              equ       :AnRTS
 
 ;*******************************************************************************
 ; return payload in X
@@ -995,7 +988,7 @@ get_payload         proc
                                                   ; skip over return address and 2 more bytes
                                                   ; point to index 3
                     cpx       end_ram             ; stack underflow?
-                    beq       j2_error            ; yes, error
+                    beq       ?CommonError        ; yes, error
                     ldx       1,x                 ; get payload into X
                     stx       IL_temp             ; save it
                     tsx                           ; point to return address
@@ -1010,7 +1003,7 @@ Loop@@              lda       3,x
                     pulb                          ; restore B
                     ins:2                         ; drop 1 word (duplicate return address)
                     ldx       IL_temp             ; get payload
-locret_519          rts                           ; done
+                    rts                           ; done
 
 ;*******************************************************************************
 ; find BASIC line whose lineno is on stack
@@ -1020,28 +1013,32 @@ locret_519          rts                           ; done
 
 find_line           proc
                     jsr       IL_SP               ; pop word into A:B
-                    stb       IL_temp+1           ; save in temporary
-                    sta       IL_temp
+                    std       IL_temp             ; save in temporary
                     ora       IL_temp+1           ; check if zero (invalid)
-                    beq       j2_error            ; if so, error
-          ;-------------------------------------- ; find BASIC line whose lineno is in IL_temp
-find_line1          ldx       start_prgm          ; set BASIC pointer to start
+                    beq       ?CommonError        ; if so, error
+;                   bra       find_line1
+
+;*******************************************************************************
+; find BASIC line whose lineno is in IL_temp
+
+find_line1          proc
+                    ldx       start_prgm          ; set BASIC pointer to start
                     stx       basic_ptr
 
-test_line           jsr       save_lineno         ; save current lineno
+Loop@@              jsr       save_lineno         ; save current lineno
                                                   ; note: X = lineno
-                    beq       find_exit           ; if zero, skip to end
+                    beq       Done@@              ; if zero, skip to end
                     ldb       basic_lineno+1      ; compare line number with current line
                     lda       basic_lineno
                     subb      IL_temp+1
                     sbca      IL_temp
-                    bcc       find_exit           ; if above, exit
+                    bcc       Done@@              ; if above, exit
 
-find_eoln           jsr       fetch_basicchar     ; get next char
-                    bne       find_eoln           ; not CR? loop
-                    bra       test_line           ; check next line
+ToEoL@@             jsr       fetch_basicchar     ; get next char
+                    bne       ToEoL@@             ; not CR? loop
+                    bra       Loop@@              ; check next line
 
-find_exit           cpx       IL_temp             ; compare current linenumber with searched one
+Done@@              cpx       IL_temp             ; compare current linenumber with searched one
                     rts
 
 ;*******************************************************************************
@@ -1049,18 +1046,21 @@ find_exit           cpx       IL_temp             ; compare current linenumber w
 
 emit_number         proc
                     jsr       expr_push_word      ; push number on stack
+;                   bra       IL_PN
 
-IL_PN               ldx       expr_stack_x        ; get address of stack top
+;*******************************************************************************
+
+IL_PN               proc
+                    ldx       expr_stack_x        ; get address of stack top
                     tst       ,x                  ; is number negative?
-                    bpl       loc_552             ; no, skip
+                    bpl       Go@@                ; no, skip
                     jsr       IL_NE               ; negate top of stack
                     lda       #'-'                ; emit negative sign
                     bsr       emit_char
 
-loc_552             clra                          ; push 0 (end of digits)
+Go@@                clra                          ; push 0 (end of digits)
                     psha
-                    ldb       #$F
-                    lda       #$1A
+                    ldd       #$1A0F
                     psha                          ; counter for 10's (0x1A)
                     pshb                          ; counter for 100's (0x0F)
                     psha                          ; counter for 1000's, (0x1A)
@@ -1068,34 +1068,34 @@ loc_552             clra                          ; push 0 (end of digits)
                     jsr       IL_SP               ; pop TOS into A:B
                     tsx                           ; point to the constants 0xF, 0x1A....
 
-loop_10000s         inc       ,x                  ; increment counter for 10000's
+_10000@@            inc       ,x                  ; increment counter for 10000's
                     subb      #[10000             ; subtract 10000 until negative
                     sbca      #]10000
-                    bcc       loop_10000s         ; counter for 10000's will become 0x10...0x14
+                    bcc       _10000@@            ; counter for 10000's will become 0x10...0x14
 
-loop_1000s          dec       1,x                 ; is now negative value, subtract until positive again
+_1000@@             dec       1,x                 ; is now negative value, subtract until positive again
                     addb      #[1000              ; add 1000 until positive again
                     adca      #]1000              ; decrement counter for 1000's
-                    bcc       loop_1000s          ; counter for 1000's will become 0x19...0x10
+                    bcc       _1000@@             ; counter for 1000's will become 0x19...0x10
 
-loop_100s           inc       2,x                 ; is positive value now
-                    subb      #100                ; subtract 100 (0x54) until negative
+_100@@              inc       2,x                 ; is positive value now
+                    subb      #100                ; subtract 100 until negative
                     sbca      #0
-                    bcc       loop_100s           ; counter for 100's becomes 0x10...0x19
+                    bcc       _100@@              ; counter for 100's becomes 0x10...0x19
 
-loop_10s            dec       3,x                 ; is now negative
+_10@@               dec       3,x                 ; is now negative
                     addb      #10                 ; add 10 until positive again
-                    bcc       loop_10s            ; counter for 10's become 0x10..0x19
+                    bcc       _10@@               ; counter for 10's become 0x10..0x19
           ;-------------------------------------- ; B contains remaining 1's digits
                     clr       lead_zero           ; clear flag to suppress leading zeroes
 
-emit_digits         pula                          ; restore counter 10000
+EmitDigits@@        pula                          ; restore counter 10000
                     tsta                          ; was zero?
-                    beq       last_digit          ; yes, last digit to emit, this one is in B
+                    beq       Done@@              ; yes, last digit to emit, this one is in B
                     bsr       emit_digit          ; emit digit in A, suppress leading zeroes
-                    bra       emit_digits         ; guarantee last digit is printed.
+                    bra       EmitDigits@@        ; guarantee last digit is printed.
 
-last_digit          tba                           ; last digit is in B
+Done@@              tba                           ; last digit is in B
 ;                   bra       emit_digit
 
 ;*******************************************************************************
@@ -1108,11 +1108,12 @@ emit_digit          proc
           ; because it can't be 0x10 (is 0...9)
           ;--------------------------------------
                     tst       lead_zero           ; already emitted a digit?
-                    beq       locret_5AA          ; no, exit (leading zero)
+                    beq       Done@@              ; no, exit (leading zero)
 
 Go@@                inc       lead_zero           ; notify digit print
                     ora       #'0'                ; make it a real ASCII '0'...'9'
 ;                   bra       emit_char           ; and print it
+Done@@              equ       :AnRTS
 
 ;*******************************************************************************
 ; emit a character in A
@@ -1128,7 +1129,7 @@ emit_char           proc
                     rts                           ; done
 
 StopEmit@@          dec       column_cnt          ; if column = 0x80, don't advance further
-locret_5AA          rts
+                    rts
 
 ;*******************************************************************************
 ; IL instruction print string
@@ -1145,10 +1146,9 @@ IL_PC               jsr       fetch_il_op         ; get next byte of instruction
 
 loop_pq             proc
                     cmpa      #'"'                ; is character string terminator?
-                    beq       locret_5AA          ; yes, exit
+                    beq       Done@@              ; yes, exit
                     bsr       emit_char           ; otherwise emit char
-; and redo PQ instruction
-
+          ;-------------------------------------- ; and redo PQ instruction
 IL_PQ               jsr       fetch_basicchar     ; get next char from BASIC text
                     bne       loop_pq             ; if not CR, loop
                     jmp       CommonError         ; error - unterminated string
@@ -1159,18 +1159,23 @@ Done@@              equ       :AnRTS
 
 IL_PT               proc
                     ldb       column_cnt          ; column counter
-                    bmi       locret_5AA          ; if overflow, exit
+                    bmi       Done@@              ; if overflow, exit
                     orb       #$F8                ; make 7...0
                     negb
-                    bra       pt_loop             ; jump to space printer
+                    bra       ?print_spc          ; jump to space printer
+Done@@              equ       :AnRTS
 
-pt_print_spc        jsr       IL_SP               ; drop A:B off stack
+;*******************************************************************************
 
-pt_loop             decb                          ; decrement low byte
-                    blt       locret_5AA          ; < 0, exit
+pt_print_spc        proc
+                    jsr       IL_SP               ; drop A:B off stack
+?print_spc
+Loop@@              decb                          ; decrement low byte
+                    blt       Done@@              ; < 0, exit
                     lda       #' '                ; emit a space
                     bsr       emit_char
-                    bra       pt_loop             ; loop
+                    bra       Loop@@              ; loop
+Done@@              equ       :AnRTS
 
 ;*******************************************************************************
 ; IL Instruction List BASIC source
@@ -1186,10 +1191,10 @@ IL_LS               proc
           ; note "LIST start,end", so the first result
           ; popped off stack is the end
           ;--------------------------------------
-                    beq       ls_nostart          ; no more argument on stack
+                    beq       Loop@@              ; no more argument on stack
                     bsr       ls_getlineno        ; save first position in LS_begin
           ;-------------------------------------- ; get another argument into basic_ptr, if any
-ls_nostart          lda       basic_ptr           ; compare start and end of listing
+Loop@@              lda       basic_ptr           ; compare start and end of listing
                     ldb       basic_ptr+1
                     subb      LS_end+1
                     sbca      LS_end
@@ -1201,13 +1206,13 @@ ls_nostart          lda       basic_ptr           ; compare start and end of lis
                     jsr       emit_number         ; print line number
                     lda       #' '                ; print a space
 
-ls_loop             bsr       j_emitchar
+_@@                 bsr       j_emitchar
                     jsr       BV                  ; check for break
                     bcs       ls_exit             ; if break, exit
                     jsr       fetch_basicchar     ; get next char from line
-                    bne       ls_loop             ; if not CR, loop output
+                    bne       _@@                 ; if not CR, loop output
                     bsr       IL_NL               ; emit a CRLF
-                    bra       ls_nostart          ; loop with next line
+                    bra       Loop@@              ; loop with next line
 
 ;*******************************************************************************
 ; called with an address into BASIC code
@@ -1218,20 +1223,25 @@ ls_getlineno        proc
                     stx       LS_end              ; store as default end of listing
                     ldx       expr_stack_x        ; get expr_stack ptr
                     cpx       #$80                ; is stack empty?
-                    beq       locret_622          ; yes, no arg given...done
+                    beq       Done@@              ; yes, no arg given...done
                     jsr       find_line           ; find the line (after the lineno) that was given on
                                                   ; stack (start line number)
                                                   ; result in X=basic_ptr
 ;                   bra       ls_to_linestart
+Done@@              equ       :AnRTS
+
 ;*******************************************************************************
 
 ls_to_linestart     proc
                     ldx       basic_ptr           ; point back to lineno that was found
                     dex:2
                     stx       basic_ptr
-locret_622          rts
+                    rts
 
-ls_exit             ldx       bp_save             ; restore old BASIC pointer
+;*******************************************************************************
+
+ls_exit             proc
+                    ldx       bp_save             ; restore old BASIC pointer
                     stx       basic_ptr
                     rts
 
@@ -1240,8 +1250,9 @@ ls_exit             ldx       bp_save             ; restore old BASIC pointer
 
 IL_NL               proc
                     lda       column_cnt          ; if column > 127, suppress output
-                    bmi       locret_622
+                    bmi       Done@@
 ;                   bra       crlf
+Done@@              equ       :AnRTS
 
 ;*******************************************************************************
 ; do a CRLF
@@ -1442,7 +1453,7 @@ Shrink@@            ldx       basicptr_save       ; copy from end of insert addr
 
 GrowLine@@          addb      end_prgm+1          ; make space after end of program for B bytes
                     stb       basicptr_save+1
-                    lda       #0
+                    clra
                     adca      end_prgm
                     sta       basicptr_save       ; basicptr_save = new end of program
                     subb      top_of_stack+1
@@ -1472,11 +1483,9 @@ SameSize@@          ldx       basic_lineno        ; now there is space at positi
           ;-------------------------------------- ; check lineno:  is 0 if delete
                     beq       Done@@              ; nothing to copy (gap is already closed)
                     ldx       IL_temp             ; start of area to insert into (the gap)
-                    lda       basic_lineno        ; store the line number into this area
-                    ldb       basic_lineno+1
-                    sta       ,x
+                    ldd       basic_lineno        ; store the line number into this area
+                    std       ,x
                     inx
-                    stb       ,x
           ;--------------------------------------
 MoveLine@@          inx
                     stx       IL_temp             ; position of gap
@@ -1548,7 +1557,7 @@ il_test_insert      fcb       $C5                 ; BN 05: if not number, branch
 il_run              fcb       $10                 ; SB : save BASIC pointer
                     fcb       $11                 ; RB : restore BASIC pointer
                     fcb       $2C                 ; XC : execute
-il_test_let         fcb       $8B,'L','E',$D4     ; BC 0B: if not "LET", branch to il_test_go
+il_test_let         fcb       $8B,'LE','T'+$80    ; BC 0B: if not "LET", branch to il_test_go
                     fcb       $A0                 ; BV 00: if not variable, error
                     fcb       $80,'='+$80         ; BC 00: if not "=", error
 il_let              fcb       $30,$BC             ; JS 0BC: call il_expr
@@ -1562,13 +1571,13 @@ il_test_go          fcb       $94,'G','O'+$80     ; BC 14: if not "GO", branch t
                     fcb       $10                 ; SB : save BASIC pointer
                     fcb       $11                 ; RB : restore BASIC pointer
                     fcb       $16                 ; GO : GOTO
-il_test_sub         fcb       $80,'S','U','B'+$80 ; BC 00: if not "SUB", error
+il_test_sub         fcb       $80,'SU','B'+$80    ; BC 00: if not "SUB", error
                     fcb       $30,$BC             ; JS 0BC: call il_expr
                     fcb       $E0                 ; BE 00: if not eoln, error
                     fcb       $14                 ; GS : GOSUB save
                     fcb       $16                 ; GO : GOTO
 il_test_pr          fcb       $90,'P','R'+$80     ; BC 10: if not "PR", branch to il_jump1
-                    fcb       $83,'I','N','T'+$80 ; BC 03: if not "INT", branch to il_print
+                    fcb       $83,'IN','T'+$80    ; BC 03: if not "INT", branch to il_print
 il_print            fcb       $E5                 ; BE 05: if not eoln, branch to il_pr_test_dq
                     fcb       $71                 ; BR 31: branch to il_pr_must_eoln
 il_pr_test_semi     fcb       $88,';'+$80         ; BC 08: if not ";", branch to il_pr_test_com
@@ -1593,11 +1602,11 @@ il_pr_expr          fcb       $30,$BC             ; JS 0BC: call il_expr
 il_test_if          fcb       $30,$BC             ; JS 0BC: call il_expr
                     fcb       $31,$34             ; JS 134: call il_cmpop
                     fcb       $30,$BC             ; JS 0BC: call il_expr
-                    fcb       $84,'T','H','E','N'+$80 ; BC 04: if not "THEN", branch to il_test_input
+                    fcb       $84,'THE','N'+$80   ; BC 04: if not "THEN", branch to il_test_input
                     fcb       $1C                 ; CP : compare
                     fcb       $1D                 ; NX : next BASIC statement
                     fcb       $38,$D              ; J 00D: jump il_test_let
-il_test_input       fcb       $9A,'I','N','P','U','T'+$80 ; BC 1A: if not "INPUT", branch to il_test_return
+il_test_input       fcb       $9A,'INPU','T'+$80  ; BC 1A: if not "INPUT", branch to il_test_return
 il_in_more          fcb       $A0                 ; BV 00: if not variable, error
                     fcb       $10                 ; SB : save BASIC pointer
                     fcb       $E7                 ; BE 07: if not eoln, branch to il_in_test_com
@@ -1613,16 +1622,16 @@ il_in_test_com      fcb       $81,','+$80         ; BC 01: if not ",", branch to
                     fcb       $4D                 ; BR 0D: branch to il_in_more
                     fcb       $E0                 ; BE 00: if not eoln, error
                     fcb       $1D                 ; NX : next BASIC statement
-il_test_return      fcb       $89,'R','E','T','U','R','N'+$80 ; BC 09: if not "RETURN", branch to il_test_end
+il_test_return      fcb       $89,'RETUR','N'+$80 ; BC 09: if not "RETURN", branch to il_test_end
                     fcb       $E0                 ; BE 00: if not eoln, error
                     fcb       $15                 ; RS : restore saved line
                     fcb       $1D                 ; NX : next BASIC statement
-il_test_end         fcb       $85,'E','N','D'+$80 ; BC 05: if not "END", branch to il_test_list
+il_test_end         fcb       $85,'EN','D'+$80    ; BC 05: if not "END", branch to il_test_list
                     fcb       $E0                 ; BE 00: if not eoln, error
                     fcb       $2D                 ; WS : stop
-il_test_list        fcb       $98,'L','I','S','T'+$80 ; BC 18: if not "LIST", branch to il_test_run
+il_test_list        fcb       $98,'LIS','T'+$80   ; BC 18: if not "LIST", branch to il_test_run
                     fcb       $EC                 ; BE 0C: if not eoln, branch to il_li_line
-il_li_newline       fcb       $24,0,0,0,0,$0A,0+$80 ; PR : print literal NUL,NUL,NUL,NUL,LF,NUL
+il_li_newline       fcb       $24,0,0,0,0,LF,0+$80 ; PR : print literal NUL,NUL,NUL,NUL,LF,NUL
                     fcb       $1F                 ; LS : list the program
                     fcb       $24,$13+$80         ; PR : print literal XOFF
                     fcb       $23                 ; NL : newline
@@ -1632,11 +1641,11 @@ il_li_line          fcb       $30,$BC             ; JS 0BC: call il_expr
                     fcb       $50                 ; BR 10: branch to il_li_newline
                     fcb       $80,','+$80         ; BC 00: if not ",", error
                     fcb       $59                 ; BR 19: branch to il_li_line
-il_test_run         fcb       $85,'R','U','N'+$80 ; BC 05: if not "RUN", branch to il_test_clear
+il_test_run         fcb       $85,'RU','N'+$80    ; BC 05: if not "RUN", branch to il_test_clear
                     fcb       $38,$0A             ; J 00A: branch to il_run
-il_test_clear       fcb       $86,'C','L','E','A','R'+$80 ; BC 06: if not "CLEAR", branch to il_test_rem
+il_test_clear       fcb       $86,'CLEA','R'+$80  ; BC 06: if not "CLEAR", branch to il_test_rem
                     fcb       $2B                 ; MT : mark basic program space empty
-il_test_rem         fcb       $84,'R','E','M'+$80 ; BC 04: if not "REM, branch to il_assign
+il_test_rem         fcb       $84,'RE','M'+$80    ; BC 04: if not "REM, branch to il_assign
                     fcb       $1D                 ; NX : next BASIC statement
                     fcb       $A0                 ; BV 00: if not variable, error
 il_assign           fcb       $80,'='+$80         ; BC 00: if not "=", error
@@ -1666,7 +1675,7 @@ il_term1            fcb       $85,'/'+$80         ; if not "/", branch to il_ter
                     fcb       $1B                 ; DV : divide
                     fcb       $54                 ; BR 14: branch to il_term0
 il_term2            fcb       $2F                 ; RT : return
-il_factor           fcb       $98,'R','N','D'+$80 ; BC 18: if not RND, branch to il_factor1
+il_factor           fcb       $98,'RN','D'+$80    ; BC 18: if not RND, branch to il_factor1
                     fcb       $A,$80,$80          ; LN : push literal 0x8080
                     fcb       $12                 ; FV : fetch variable rnd_seed
                     fcb       $A,$09,$29          ; LN : push literal 0x0929
@@ -1696,7 +1705,7 @@ il_factor2          fcb       $B                  ; DS : duplicate stack top
                     fcb       $1C                 ; CP : compare
                     fcb       $17                 ; NE : negate
                     fcb       $2F                 ; RT : return
-il_usr              fcb       $8F,'U','S','R'+$80 ; BC 0F: if not "USR", branch to il_factor3
+il_usr              fcb       $8F,'US','R'+$80    ; BC 0F: if not "USR", branch to il_factor3
                     fcb       $80                 ; BC 00: if not "(", error
                     fcb       $A8                 ; if not variable, branch to il_usr1
                     fcb       $30,$BC             ; JS 0BC: call il_expr
