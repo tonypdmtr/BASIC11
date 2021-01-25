@@ -388,11 +388,8 @@ PNUMTOK             equ       $78                 ; '#'
 JMPOP               equ       $7E                 ; OP-CODE FOR "JMP" (USED TO INITALIZE INTERRUPT TABLE)
 
 ;*******************************************************************************
-; Variables
+                    #RAM      $0000               ; Variables
 ;*******************************************************************************
-
-                    #RAM
-                    org       $0000
 
 ; char
 
@@ -608,8 +605,7 @@ ASFLAG              rmb       1                   ; auto-start flag
 ;*****************************************************************************
 ;*****************************************************************************
 
-                    #ROM
-                    org       ROMBEG
+                    #ROM      ROMBEG
 
 POWERUP             ldd       #IOBASE             ; register base address (default, $1000)
                     std       IOBASEV             ; "
@@ -696,7 +692,7 @@ PWRUP2              lda       ,y                  ; Move a byte of the table fro
                     std       ONIRQLIN
                     std       ONPACLIN
 
-                    ldx       #IODEVINIT          ; USERINIT
+                    ldx       #IODevInit          ; USERINIT
                     jsr       ,x                  ; INITALIZE THE SCI.
 
 ;*****************************************************************************
@@ -3170,7 +3166,7 @@ RPTERR6             lda       #1
 ; return;
 ;}
 
-RPTERR5             ldx       #ErrorS
+RPTERR5             ldx       #ERRORS
                     jsr       PL
                     ldb       ERRCODE
                     clra
@@ -7694,8 +7690,7 @@ BOOT1               ldx       #$1000              ; register base address
 ;***********
 ; INTERRUPT VECTORS (IN EEPROM)
 
-                    #VECTORS
-                    org       $FFFF-$29           ; TOP OF ROM
+                    #VECTORS  $FFFF-$29           ; TOP OF ROM
 
 INTVECT             fdb       SCISS               ; D6 C4 SCI (FFD6)
                     fdb       SPITC               ; D8 C7 SPI

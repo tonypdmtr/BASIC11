@@ -62,23 +62,12 @@ RESERVED_VECTORS    equ       $FFC0               ;Reserved vectors (22 bytes)
                     #MEMORY   ROM       ROM_END
                     #MEMORY   VECTORS   VECTORS|$00FF
 
-                    #VECTORS
-                    org       VECTORS
-
-                    #SEG9
-                    org       RESERVED_VECTORS-512
-
-                    #RAM
-                    org       RAM
-
-                    #XRAM
-                    org       XRAM
-
-                    #EEPROM
-                    org       EEPROM
-
-                    #ROM
-                    org       ROM
+                    #VECTORS  VECTORS
+                    #SEG9     RESERVED_VECTORS-512
+                    #RAM      RAM
+                    #XRAM     XRAM
+                    #EEPROM   EEPROM
+                    #ROM      ROM
 
 ; Register definitions
 
@@ -148,8 +137,7 @@ CSGSIZ              equ       REGS+$5F,1          ;Chip Select General Address S
 
                     #MEMORY   CONFIG
 
-                    #DATA
-                    org       CONFIG
+                    #DATA     CONFIG
 
 ?                   macro
                     mset      1,{EEPROM>8|$0F(h)}

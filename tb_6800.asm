@@ -18,9 +18,8 @@ ACIA_STATUS         equ       $FCF4
 ACIA_DATA           equ       $FCF5
 
 ;*******************************************************************************
-                    #RAM
+                    #RAM      32
 ;*******************************************************************************
-                    org       32
 
 start_prgm          rmb       2                   ; start of BASIC text (0x900)
 end_ram             rmb       2                   ; end of available RAM
@@ -52,9 +51,8 @@ expr_stack_top      rmb       1                   ; low byte of expr_stack_top (
 il_pc_save          rmb       2                   ; save of IL program counter
 
 ;*******************************************************************************
-                    #ROM
+                    #ROM      $100                ; cold start vector
 ;*******************************************************************************
-                    org       $100                ; cold start vector
 
 CV                  proc
                     jsr       COLD_S              ; Do cold start initialization
