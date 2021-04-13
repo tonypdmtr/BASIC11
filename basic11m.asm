@@ -1007,7 +1007,7 @@ Done@@              lda       #EOLTOK             ; GET EOL TOKEN.
                     subd      TKNBUFS             ; Compute the TOKEN BUFFER LENGTH.
                     ldx       TKNBUFS             ; POINT TO BUFFER.
                     stb       2,x                 ; STORE LENGTH.
-                    rts                           ; RETURN.
+                    rts
 
 ;-------------------------------------------------------------------------------
 ; KEYWORD LOOK UP TABLE
@@ -1179,11 +1179,11 @@ Done@@              puld
 ;        THIS ROUTINE GETS THE NEXT CHARACTER FROM THE INPUT BUFFER.
 
 GETCHR              proc
-                    pshx                          ; SAVE THE X REGISTER.
+                    pshx
                     ldx       IBUFPTR             ; GET POINTER.
                     lda       ,x                  ; GET A CHARACTER.
-                    pulx                          ; RESTORE X.
-                    rts                           ; RETURN.
+                    pulx
+                    rts
 
 ;*******************************************************************************
 ;        THIS ROUTINE GETS THE NEXT CHARACTER FROM THE INPUT BUFFER
@@ -1198,12 +1198,12 @@ GETNXCHR            proc
 ;        THIS ROUTINE JUST INCREMENTS THE INPUT BUFFER POINTER.
 
 INCIBP              proc
-                    pshx                          ; SAVE X.
+                    pshx
                     ldx       IBUFPTR             ; GET POINTER.
                     inx                           ; ADVANCE POINTER.
                     stx       IBUFPTR             ; UPDATE POINTER.
-RetX                pulx                          ; RESTORE X
-                    rts                           ; RETURN.
+RetX                pulx
+                    rts
 
 ;*******************************************************************************
 ;        THIS ROUTINE PUTS THE WORD IN THE D-REG. INTO THE TOKEN BUFFER
@@ -1695,11 +1695,11 @@ Loop@@              inx                           ; BUMP POINTER TO NEXT CHAR.
                     lda       ,x                  ; AT THE END OF THE TABLE?
                     bne       TBLSRCH             ; NO. GO CHECK THE NEXT ENTRY.
                     clc                           ; YES. FLAG AS NOT FOUND.
-                    rts                           ; RETURN.
+                    rts
 
 Found@@             lda       1,x                 ; GET TOKEN.
                     sec                           ; FLAG AS FOUND.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -1868,7 +1868,7 @@ CHCKTYP             proc
                     pula                          ; RESTORE THE TOKEN TYPE.
                     bne       Done@@              ; NO. RETURN.
                     adda      #$10                ; YES. MAKE IT AN ARRAY VARIABLE.
-Done@@              rts                           ; RETURN.
+Done@@              rts
 
 ;*******************************************************************************
 ;***** findvar *****/
@@ -2546,7 +2546,7 @@ UpLim@@             cmpa      #'E'                ; IS IT HIGHER THAN AN "E"?
 XPACCF              proc
 XTIMEF              jsr       PUTTOK              ; PUT TOKEN IN BUFFER.
                     lda       #NUM                ; RETURN TYPE "NUM".
-                    rts                           ; RETURN.
+                    rts
 
                     title     BASICLB4
 
@@ -2942,9 +2942,10 @@ CHKCOMA             proc
                     cmpa      #COMMA              ; IS IT A COMMA?
                     beq       Token@@             ; YES. PUT IT IN THE TOKEN BUFFER.
                     clc                           ; NO. FLAG NO COMMA FOUND.
-                    rts                           ; RETURN.
+                    rts
 
 Token@@             lda       #COMMATOK           ; GET THE COMMA TOKEN.
+;                   bra       PutToken
 
 ;*******************************************************************************
 
@@ -2952,7 +2953,7 @@ PutToken            proc
                     jsr       PUTTOK              ; PUT THE TOKEN IN THE BUFFER.
                     jsr       INCIBP              ; BUMP THE INPUT BUFFER POINTER.
                     sec
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 ;***** xinput() *****/
@@ -3215,8 +3216,8 @@ Done@@              ldd       1,y                 ; GET CURRENT DIVISOR.
                     ldb       #5                  ; DEALLOCATE LOCALS.
                     aby
                     tys
-                    puly                          ; RESTORE Y.
-                    rts                           ; RETURN.
+                    puly
+                    rts
 
                     title     LEDITOR
 
@@ -3244,7 +3245,7 @@ STORLIN             proc
                     ldx       TKNBUFS             ; point to the start of the token buffer
                     ldd       ,x                  ; get the first 2 bytes of the token buffer (the line number).
                     std       HILINE
-                    rts                           ; return.
+                    rts
 
 ; linum=findline(*numptr);       look for line # in the program buffer
 ; if(*linum==*numptr)            is it the same line #?
@@ -3284,7 +3285,7 @@ DELLINE             proc
 Done@@              lda       #1                  ; YES. THE LINE CANNOT EXIST.
                     sta       CONTFLAG
                     puld                          ; PULL THE LINE NUMBER OFF THE STACK.
-                    rts                           ; RETURN.
+                    rts
 
 Go@@                bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
 
@@ -3307,7 +3308,7 @@ Go@@                bsr       FINDLINE            ; GO SEE IF THE LINE EXISTS.
                     bne       Done@@              ; NO. JUST RETURN.
                     bsr       FINDHILN            ; YES. GO FIND THE HIGHEST LINE NUMBER.
                     std       HILINE              ; SAVE IT.
-                    bra       Done@@              ; RETURN.
+                    bra       Done@@
 
 ;*******************************************************************************
 ;***** closespc() *****/        close up space in the BASIC buffer
@@ -3338,8 +3339,8 @@ Loop@@              cpy       BASEND              ; HAVE WE MOVED ALL THE BYTES?
 
 Done@@              stx       BASEND              ; SAVE THE NEW 'END OF BASIC PROGRAM' POINTER.
                     jsr       MoveVarsDn          ; MOVE ALL THE VARIABLES DOWN.
-                    puly                          ; RESTORE Y.
-                    rts                           ; RETURN.
+                    puly
+                    rts
 
 ;*******************************************************************************
 ;***** findline() *****/        return pointer to line number or next
@@ -3611,8 +3612,8 @@ Loop@@              lda       ,y                  ; GET A BYTE.
                     inx                           ; ADJUST THE POINTER
 Done@@              stx       VARBEGIN            ; SAVE THE NEW START OF VARIABLE TABLE POINTER.
                     pulb                          ; RESTORE THE BYTE COUNT.
-                    puly                          ; RESTORE Y.
-                    rts                           ; RETURN.
+                    puly
+                    rts
 
 ;*******************************************************************************
 
@@ -3638,8 +3639,8 @@ Loop@@              lda       ,y                  ; GET A BYTE.
                     dex
 Done@@              stx       VAREND              ; SAVE THE NEW POINTER TO THE END OF THE VARIABLE TABLE.
                     pulb                          ; RESTORE THE BYTE COUNT.
-                    puly                          ; RESTORE Y.
-                    rts                           ; RETURN.
+                    puly
+                    rts
 
 ;*******************************************************************************
 
@@ -3647,7 +3648,7 @@ DecCount            proc
                     ldd       VarSize             ; get the size of the variable table.
                     decd                          ; decrement it.
                     std       VarSize             ; save the new value.
-                    rts                           ; return.
+                    rts
 
                     title     Inits
 
@@ -3724,7 +3725,7 @@ Normal@@            clrd                          ; MAKE THE HIGHEST LINE IN THE
                     ldx       VAREND              ; GET THE POINTER TO THE END OF VARIABLE STORAGE.
                     inx                           ; BUMP IT BY 1.
                     stx       STRASTG             ; POINT TO THE DYNAMIC ARRAY STORAGE.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -3887,7 +3888,7 @@ ToEnd@@             inx                           ; ADVANCE POINTER TO NEXT CHAR
 Found@@             ldx       1,x                 ; GET ADDRESS OF COMMAND.
                     jsr       ,x                  ; GO DO IT.
                     ldd       #1                  ; SHOW WE EXECUTED A COMMAND.
-                    rts                           ; RETURN.
+                    rts
 
 ?                   macro
                     mdef      2,~1~
@@ -4534,7 +4535,7 @@ RSKIPSPC            proc
                     blo       Done@@
                     iny                           ; BUMP IP BY 2 FOR MULTIPLE SPACES.
 Bump@@              iny                           ; BUMP IP.
-Done@@              rts                           ; RETURN.
+Done@@              rts
 
 ;*******************************************************************************
 
@@ -4786,7 +4787,7 @@ Loop@@              lda       SSTART,x            ; get a byte of the program.
                     cpy       VAREND              ; have we finished loading the program.
                     bls       Loop@@              ; no. keep loading.
                     sty       STRASTG             ; yes. initialize the array storage area.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -4795,7 +4796,7 @@ CLLIST              proc
                     sta       DEVNUM
                     jsr       CLIST               ; GO DO A STANDARD LIST COMMAND.
                     clr       DEVNUM
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -4930,7 +4931,7 @@ RREM                proc                          ; NON-EXECUTABLE STATEMENT JUS
 RDATA               proc
                     ldb       ,y                  ; GET LENGTH OF REMARK OR DATA LINE.
                     aby                           ; POINT TO THE EOLTOK.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -4959,7 +4960,7 @@ Loop@@              ldd       1,y                 ; GET THE OFFSET TO THE DICTIO
                     pshb                          ; SAVE B.
                     ldb       #3                  ; POINT TO THE FIRST ELEMENT PAST THE VARIABLE.
                     aby
-                    pulb                          ; RESTORE B.
+                    pulb
                     rts
 
 Subscr@@            jsr       CALCSUB             ; GO GET BASE ADDR & EVALUATE SUBSCRIPT EXPRESSION.
@@ -4967,8 +4968,8 @@ Subscr@@            jsr       CALCSUB             ; GO GET BASE ADDR & EVALUATE 
                     tsx                           ; POINT TO IT.
                     lsld                          ; MULT THE SUBSCRIPT BY THE # OF BYTES/ELEMENT.
 Done@@              addd      ,x                  ; GET ADDRESS OF ELEMENT.
-                    pulx                          ; RESTORE X.
-                    rts                           ; RETURN.
+                    pulx
+                    rts
 
 Pointer@@           bita      #$10                ; IS IT A STRING ARRAY?
                     beq       Loop@@              ; NO. JUST GO GET POINTER TO DESCRIPTOR.
@@ -5284,7 +5285,7 @@ RSLEEP              proc
                     ora       #$80                ; DISABLE THE STOP INSTRUCTION.
                     tap                           ; TRANSFER THE RESULT BACK TO THE CCR.
                     cli                           ; ALLOW INTERRUPTS.
-                    rts                           ; RETURN TO WHAT WE WERE DOING.
+                    rts
 
 ;*******************************************************************************
 
@@ -5440,7 +5441,7 @@ PFUNCOM             proc
                     iny                           ; BUMP IP PAST CLOSING PAREN.
                     jsr       PULNUM              ; GET OPERAND OFF STACK.
                     tsta                          ; CHECK THAT OPERAND IS >0 & <=255 FOR FUNCTIONS THAT REQUIRE IT.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -5640,7 +5641,7 @@ Go@@                cpd       #7                  ; IS IT LARGER THAN 7?
                     beq       Done@@              ; YES. DON'T BUMP THE IP.
                     iny                           ; BYPASS THE COMMA.
                     jsr       RSKIPSPC            ; SKIP SPACES.
-Done@@              rts                           ; RETURN.
+Done@@              rts
 
 ;*******************************************************************************
 
@@ -5712,7 +5713,7 @@ INDECI              proc
                     jsr       INCIBP              ; YES. BUMP INPUT BUFFER PAST IT.
                     jsr       GETDECI             ; GET THE NUMBER.
                     negd                          ; NEGATE IT.
-                    rts                           ; RETURN.
+                    rts
 
 Pos@@               jmp       GETDECI
 
@@ -5728,19 +5729,19 @@ Go@@                stx       IBUFPTR             ; PUT IT IN THE INPUT BUFFER P
                     bcs       Cont@@              ; IF CARRY SET, MORE DATA TO READ.
                     ldx       IBUFPTR             ; GET POINTER TO DATA LINE.
                     stx       DATAPTR             ; SAVE DATA POINTER FOR NEXT READ.
-                    rts                           ; RETURN.
+                    rts
 
-Cont@@              pshy                          ; SAVE Y.
+Cont@@              pshy
                     ldy       IBUFPTR
                     iny:2
                     bsr       RESTOR4             ; GO FIND NEXT "DATA" STATEMENT.
-                    puly                          ; RESTORE Y.
+                    puly
                     bra       RREAD               ; KEEP READING DATA.
 
 ;*******************************************************************************
 
 RRESTOR             proc
-                    pshy                          ; SAVE Y.
+                    pshy
                     ldy       BASBEG              ; START SEARCH FOR "DATA" STATEMENTS AT THE BEGIN.
 Loop@@              pshy                          ; SAVE POINTER TO THIS LINE.
                     ldb       2,y                 ; GET LINE LENGTH.
@@ -5761,8 +5762,8 @@ Cont@@              cpy       BASEND              ; ARE WE AT THE END OF THE PRO
 
 Done@@              iny:2                         ; POINT PAST DATA TOKEN & THE DATA LENGTH.
                     sty       DATAPTR             ; SAVE POINTER TO DATA.
-                    puly                          ; RESTORE Y.
-                    rts                           ; RETURN.
+                    puly
+                    rts
 
 RESTOR4             pshy                          ; CALL TO COMPENSATE FOR PULL OF Y ON RETURN.
                     bra       Cont@@
@@ -5824,7 +5825,7 @@ Write@@             lda       1,y                 ; GET LS BYTE OF WORD.
                     dex                           ; POINT TO THE MOST SIGNIFIGANT EEPROM LOCATION.
                     lda       ,y                  ; GET THE MS BYTE OF THE WORD.
                     bsr       PROGBYTE            ; GO PROGRAM THE BYTE.
-                    puly                          ; RESTORE Y.
+                    puly
                     jsr       PULNUM              ; FIX UP NUM STACK.
                     jmp       PULNUM
 
@@ -5864,19 +5865,19 @@ Loop@@              ldb       #$02                ; SET UP NORMAL PROGRAMING MOD
                     pula                          ; RESTORE THE DATA TO SEE IF IT WAS PROGRAMMED.
                     cmpa      ,x                  ; WAS THE DATA WRITTEN PROPERLY?
                     bne       Loop@@              ; NO. TRY AGAIN.
-                    rts                           ; YES. RETURN.
+                    rts
 
 ;*******************************************************************************
                               #Cycles
 DLY10MS             proc
-                    pshx                          ; SAVE X.
+                    pshx
                     ldx       #DELAY@@            ; GET DELAY CONSTANT.
                               #Cycles
 Loop@@              dex                           ; DECREMENT THE COUNT. DONE?
                     bne       Loop@@              ; NO. DELAY SOME MORE.
                               #temp :cycles
-                    pulx                          ; RESTORE X.
-                    rts                           ; RETURN.
+                    pulx
+                    rts
 
 BUS_KHZ             def       2000
 DELAY@@             equ       10*BUS_KHZ-:cycles-:ocycles/:temp
@@ -5892,7 +5893,7 @@ RINBYTE             proc
                     clra                          ; ZERO THE UPPER BYTE.
                     std       ,x                  ; PUT IT IN THE VARIABLE.
                     clr       DEVNUM              ; RESET TO DEVICE #0.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -5901,7 +5902,7 @@ RTIME               proc
                     jsr       DONEXP              ; GO EVALUATE THE EXPRESSION.
                     jsr       PULNUM              ; GET THE NUMBER OFF THE STACK.
                     std       TIMEREG             ; PUT IT IN THE TIME REGISTER.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -5914,7 +5915,7 @@ RRTIME              proc
                     clrd
                     std       TIMEREG             ; PUT IT IN THE TIME REGISTER.
                     cli
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -5928,7 +5929,7 @@ RPACC               proc
                     jmp       RPTRERR
 
 Go@@                stb       PACNT               ; PUT NUMBER IN PULSE ACC.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -5959,7 +5960,7 @@ RONIRQ              proc
 Go@@                sty       ONIRQLIN            ; SAVE THE POINTER TO THE LINE NUMBER,
 ?RonExit            ldb       #3                  ; MOVE IP PAST THE LINE NUMBER.
                     aby
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -6029,7 +6030,7 @@ Done@@              pula                          ; GET OLD I-BIT STATUS OFF STA
                     tap                           ; RESTORE OLD STATUS.
                     ldb       #3
                     aby                           ; PASS UP LINE NUMBER.
-                    rts                           ; RETURN.
+                    rts
 
                     title     REXPRES
 
@@ -6096,8 +6097,8 @@ Array?@@            cmpa      #IAVARTOK           ; IS IT AN INTEGER ARRAY?
                     asld                          ; MULTIPLY THE SUBSCRIPT BY THE # OF BYTES/ELEMENT.
                     tsy                           ; POINT TO THE BASE ADDRESS.
                     addd      ,y                  ; GET ADDRESS OF THE ELEMENT.
-                    pulx                          ; RESTORE X.
-                    puly                          ; RESTORE Y
+                    pulx
+                    puly
                     xgdx                          ; PUT ELEMENT ADDRESS INTO X.
                     ldd       ,x                  ; GET VALUE OF ELEMENT IN D.
                     bra       PushOperand
@@ -6118,7 +6119,7 @@ PushOperand         proc
 
 Done@@              stx       NUMSTACK            ; SAVE THE STACK POINTER.
                     std       ,x                  ; PUT THE VALUE ON THE STACK.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 ;        THIS SUBROUTINE CALCULATES BOTH THE BASE ADDRESS AND THE
@@ -6142,7 +6143,7 @@ Go@@                ldb       #4                  ; SET POINTER TO START OF SUBS
                     pshx                          ; SAVE THE POINTER TO THE ARRAY STORAGE AREA.
                     jsr       DONEXP              ; GO GET THE SUBSCRIPT.
                     iny                           ; BUMP IP PAST THE CLOSING PAREN OF THE SUBSCRIPT.
-                    pulx                          ; RESTORE X.
+                    pulx
                     bsr       PULNUM              ; GET SUBSCRIPT FROM THE OPERAND STACK.
                     cpd       ,x                  ; IS THE SUBSCRIPT WITHIN RANGE?
                     bls       Done@@              ; YES. CONTINUE.
@@ -6155,14 +6156,14 @@ Done@@              inx:2                         ; BYPASS THE SUBSCRIPT LIMIT.
 ;*******************************************************************************
 
 PULNUM              proc
-                    pshx                          ; SAVE THE X-REG.
+                    pshx
                     ldx       NUMSTACK            ; GET THE OPERAND STACK POINTER.
                     ldd       ,x                  ; GET THE OPERAND.
                     inx:2                         ; BUMP THE STACK POINTER.
                     stx       NUMSTACK            ; SAVE THE STACK POINTER.
-                    pulx                          ; RESTORE THE X-REG.
+                    pulx
                     cpd       #0                  ; "TEST" THE OPERAND BEFORE WE RETURN.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 ;        ***** chcknfun() *****
@@ -6220,7 +6221,7 @@ CHCKEE              proc
                     cmpa      #MEOLTOK            ; IS IT ONE OF THE "EXPRESSION END" TOKENS?
                     bhs       Token@@             ; YES.
                     clc                           ; FLAG "NOT AT THE END OF EXPRESSION".
-                    rts                           ; RETURN.
+                    rts
 
 Token@@             lda       #CPARNTOK           ; END OF EXPRESSION FOUND. PERFORM ALL PENDING
 Go@@                bsr       PSHOP               ; OPERATIONS.
@@ -6257,7 +6258,7 @@ Loop@@              ldx       OPSTACK
                     bne       Cont@@              ; NO. CONTINUE.
                     inx:2                         ; YES. KNOCK BOTH OPERATORS OFF THE STACK.
                     stx       OPSTACK             ; SAVE THE STACK POINTER.
-Done@@              rts                           ; RETURN.
+Done@@              rts
 
 Cont@@              stb       1,x                 ; PUT IT ON THE STACK.
                     inx                           ; UPDATE THE STACK POINTER.
@@ -6391,7 +6392,7 @@ RDIV                proc
                     jsr       PULNUM              ; GET INTEGER RESULT OFF STACK.
                     ldx       NUMSTACK            ; POINT TO NUMERIC STACK.
                     std       ,x                  ; OVERWRITE REMAINDER.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -6625,7 +6626,7 @@ Go@@                xgdx                          ; PUT QUOTIENT IN D.
                     inx:2                         ; REMOVE DIVISOR FROM STACK.
                     std       ,x                  ; PUT QUITIENT ON OPERAND STACK.
                     stx       NUMSTACK            ; SAVE NEW VALUE OF STACK POINTER.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -6653,7 +6654,7 @@ Ready?@@            tst       ADCTL               ; IS THE CONVERSION COMPLETE?
                     lsrd:2                        ; DIVIDE RESULT BY 4.
                     ldx       NUMSTACK            ; POINT TO THE RESULT.
                     std       ,x                  ; PUT THE RESULT ON THE OPERAND STACK.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -6681,7 +6682,7 @@ GetNext@@           ldd       RANDOM              ; GET PREVIOUS RANDOM NUMBER (
 
 Done@@              lsrd                          ; MAKE THE NUMBER POSITIVE.
                     std       ,x                  ; PUT THE NUMBER ON THE STACK.
-                    rts                           ; RETURN.
+                    rts
 
 ;*******************************************************************************
 
@@ -6760,11 +6761,10 @@ OUTBYTE             proc
                     clr       DEVNUM              ; NO. RESET TO DEVICE #0.
                     lda       #UNINIERR           ; GO REPORT AN UNINITALIZED I/O VECTOR ERROR.
                     jmp       RPTRERR
-
 Done@@              jsr       ,x                  ; GO OUTPUT THE CHARACTER.
-                    pulx                          ; RESTORE X.
-                    pulb                          ; RESTORE B.
-                    rts                           ; RETURN.
+                    pulx
+                    pulb
+                    rts
 
 ;*******************************************************************************
 
