@@ -364,12 +364,12 @@ JMPOP               equ       $7E                 ; OP-CODE FOR "JMP" (USED TO I
                     #RAM      $0000               ; define variables
 ;*******************************************************************************
 
-;               char
+; char
 
 IBUFPTR             rmb       2                   ; input buffer pointer
 TBUFPTR             rmb       2                   ; token buffer pointer
 
-;          the next 5 variables must remain grouped togeather
+; the next 5 variables must remain grouped together
 
 BASBEG              rmb       2                   ; start of basic program area
 BASEND              rmb       2                   ; end of basic program
@@ -380,18 +380,18 @@ HILINE              rmb       2                   ; highest line number in progr
 BASMEND             rmb       2                   ; physical end of basic program memory
 VARMEND             rmb       2                   ; physical end of variable memory
 
-;               int
+; int
 
 FIRSTLIN            rmb       2                   ; first line to list
 LASTLIN             rmb       2                   ; last line to list
 INTPTR              rmb       2                   ; integer pointer
 
-;               short
+; short
 
 ERRCODE             rmb       1                   ; error code status byte
 IMMED               rmb       1                   ; immediate mode flag
-BREAKCNT            equ       *                   ; also use for break check count
-COUNT               equ       *                   ; count used in ESAVE & ELOAD routines
+BREAKCNT            equ       *,1                 ; also use for break check count
+COUNT               equ       *,1                 ; count used in ESAVE & ELOAD routines
 IFWHFLAG            rmb       1                   ; translating IF flag
 TRFLAG              rmb       1                   ; trace mode flag
 CONTFLAG            rmb       1                   ; continue flag
