@@ -2,7 +2,7 @@
 ;*           COMMON EQUATES -- MCU INDEPENDENT -- FOR ASM11 ASSEMBLER
 ;*******************************************************************************
 ;* Language  : Motorola/Freescale/NXP 68HC11 Assembly Language (aspisys.com/ASM11)
-;* Status    : FREEWARE Copyright (c) 2020 by Tony Papadimitriou <tonyp@acm.org>
+;* Status    : FREEWARE Copyright (c) 2021 by Tony Papadimitriou <tonyp@acm.org>
 ;* Original  : http://www.aspisys.com/code/hc11/common.html
 ;*******************************************************************************
 ; Dot-ending names (XXX.) indicates a unique bit mask (possibly multiple bits)
@@ -93,15 +93,11 @@ ConstValues         macro     Symbol,Value[,Value]*
 VDD                 def       5000                ;MCU voltage in mV
 
 ;===============================================================================
-#ifndef Hz
- #ifndef KHZ
-  #ifndef MHZ
+#ifndef HZ¦KHZ¦MHZ
 MHZ                 def       8                   ;default for most anything
    #ifdef __DK68HC11__
 HZ                  def       9830400
    #endif
-  #endif
- #endif
 #endif
 ;-------------------------------------------------------------------------------
 ?                   macro     FromHz,ToHz
@@ -2338,9 +2334,7 @@ MAX_OS_CALLS        def       200                 ;default room for OS calls (68
                     endm
 
                     @?        RAM
-          #ifdef XRAM
                     @?        XRAM
-          #endif
                     @?        EEPROM
                     @?        ROM
 
