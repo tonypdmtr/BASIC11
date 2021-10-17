@@ -27,9 +27,7 @@ MyDefaultDirectives macro
                     endm
 
 ;*******************************************************************************
-;*******************************************************************************
-                    @MyDefaultDirectives          ;this one called at inclusion
-;*******************************************************************************
+;                   @MyDefaultDirectives          ;this one called at inclusion
 ;*******************************************************************************
 
 ;*******************************************************************************
@@ -44,9 +42,7 @@ _cop_               macro
                     coma
                     sta       COPRST
                     endm
-
 ;-------------------------------------------------------------------------------
-
 COP                 macro
           #ifdef KickCOP
                     !jsr      KickCOP
@@ -129,12 +125,12 @@ Align2              macro     Power[,UnalignedValue]
 
 Pin                 macro     [[PinName,]PORT[,BitNumber]]
           #ifb ~@~
-              #ifb ~label~
+            #ifb ~label~
                     merror    A label for the pin is required
-              #endif
-              #ifb ~text~
+            #endif
+            #ifb ~text~
                     merror    PORT parm required on first use
-              #endif
+            #endif
                     #temp     ~text~.+1
 ~label~             set       ~text~
 ~label~.            equ       1<{:temp}
@@ -148,14 +144,14 @@ Pin                 macro     [[PinName,]PORT[,BitNumber]]
 ~1~                 set       ~2~
 ~1~.                set       1<~3~
           #else
-              #ifnb ~@~
+            #ifnb ~@~
                     mreq      1:PORT[,BitNumber]
                     mdef      2,0
                     mset      0,~label~
                     #temp     ~2~
 ~label~             set       ~1~
 ~label~.            equ       1<~2~
-              #endif
+            #endif
           #endif
           #if :temp > 7
                     #Warning  BitNumber ({:temp}) > 7
@@ -272,9 +268,9 @@ On                  macro     PinName[,RegX|RegY]
                     bset      ~1~,#~1~.
                     bset      ~1~+DDR,#~1~.
           #else
-             #ifnoparm ~2~
+            #ifnoparm ~2~
                     merror    Usage: @~0~ PinName[,RegX|RegY]
-             #endif
+            #endif
                     bset      [~1~,~2~,#~1~.
                     bset      [~1~+DDR,~2~,#~1~.
           #endif
@@ -288,9 +284,9 @@ Off                 macro     PinName[,RegX|RegY]
                     bclr      ~1~,#~1~.
                     bset      ~1~+DDR,#~1~.
           #else
-             #ifnoparm ~2~
+            #ifnoparm ~2~
                     merror    Usage: @~0~ PinName[,RegX|RegY]
-             #endif
+            #endif
                     bclr      [~1~,~2~,#~1~.
                     bset      [~1~+DDR,~2~,#~1~.
           #endif
@@ -462,18 +458,17 @@ Log2                macro     Expr[,ShiftLeftBits]
                     mreq      1:Usage: Label @~0~ Expression[,ShiftLeftBits]
                     mdef      2,0
                     #temp     :loop-2
-#ifz ~1~
+          #ifz ~1~
                     #temp     :temp<{~2~}
-          #ifparm ~label~
+            #ifparm ~label~
 ~label~             set       :temp
-          #endif
+            #endif
                     mexit     :temp
-#endif
+          #endif
                     mset      1,{~1~>1}
                     mtop
                     endm
 #endif
-
 ;*******************************************************************************
 ; Macro for showing end-of-program statistics (to be updated as needed)
 

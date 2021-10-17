@@ -34,13 +34,13 @@ Log2                macro     Expr[,ShiftLeftBits]
                     mreq      1:Usage: Label @~0~ Expression[,ShiftLeftBits]
                     mdef      2,0
                     #temp     :loop-2
-#ifz ~1~
+          #ifz ~1~
                     #temp     :temp<{~2~}
-          #ifparm ~label~
+            #ifparm ~label~
 ~label~             set       :temp
-          #endif
+            #endif
                     mexit     :temp
-#endif
+          #endif
                     mset      1,{~1~>1}
                     mtop
                     endm
@@ -93,35 +93,35 @@ ConstValues         macro     Symbol,Value[,Value]*
 VDD                 def       5000                ;MCU voltage in mV
 
 ;===============================================================================
-#ifndef HZ¦KHZ¦MHZ
+#ifndef HZ||KHZ||MHZ
 MHZ                 def       8                   ;default for most anything
-   #ifdef __DK68HC11__
+  #ifdef __DK68HC11__
 HZ                  def       9830400
-   #endif
+  #endif
 #endif
 ;-------------------------------------------------------------------------------
 ?                   macro     FromHz,ToHz
                     mreq      1,2:FromHz,ToHz
-#ifdef BUS_~1~
+          #ifdef BUS_~1~
                     mset      1,BUS_~1~
                     mset      2,BUS_~2~
-#endif
-#ifdef ~1~
-          #if ~1~\1000 >= 500
-~2~                 set       ~1~/1000+1
-          #else
-~2~                 set       ~1~/1000
           #endif
-#endif
-#ifparm ~1.1.4~ = BUS_
+          #ifdef ~1~
+            #if ~1~\1000 >= 500
+~2~                 set       ~1~/1000+1
+            #else
+~2~                 set       ~1~/1000
+            #endif
+          #endif
+          #ifparm ~1.1.4~ = BUS_
 ~1.5~               set       ~1~*4
-#endif
+          #endif
                     endm
 ;-------------------------------------------------------------------------------
-#ifdef BUS_MHZ
+          #ifdef BUS_MHZ
 BUS_HZ              def       BUS_MHZ*1000000
 BUS_KHZ             def       BUS_MHZ*1000
-#endif
+          #endif
                     @?        HZ,KHZ
                     @?        KHZ,MHZ
 
@@ -330,15 +330,15 @@ SetChipSelects      macro     [[#]STACKTOP]       ;to be called first thing afte
                     lda       #:temp
                     sta       XINIT               ;Set register base
           #endif
-#ifdef __ASPISYS__
-          #if MHZ <= 16
+          #ifdef __ASPISYS__
+            #if MHZ <= 16
                     clr       CSSTRH              ;No clock stretch
-          #else
-                    #Message  1 clock stretch for external EEPROM
+            #else
+                    #Message  One clock stretch for external EEPROM
 
                     lda       #1                  ;EEPROM 1 clock stretch
                     sta       CSSTRH              ;@>16MHz crystal (>4MHz bus)
-          #endif
+            #endif
                     clr       CSGADR              ;RAM at $0000
 
                     lda       #%1                 ;32K RAM
@@ -346,7 +346,7 @@ SetChipSelects      macro     [[#]STACKTOP]       ;to be called first thing afte
 
                     lda       #%01000101          ;CSIO1 Active High, 32K ROM at $8000
                     sta       CSCTL
-#endif
+          #endif
                     lds       ~1~
                     endm
 
@@ -428,8 +428,7 @@ MinA                macro     Operand
                     cmpa      ~1~
                     bls       Done$$$
                     lda       ~1~
-Done$$$
-                    endm
+Done$$$             endm
 
 ;*******************************************************************************
 ; Find (in RegA) the maximum between RegA and operand
@@ -440,8 +439,7 @@ MaxA                macro     Operand
                     cmpa      ~1~
                     bhs       Done$$$
                     lda       ~1~
-Done$$$
-                    endm
+Done$$$             endm
 
 ;*******************************************************************************
 ; Point X to a TableEntry given its zero-based index, table address, and
@@ -708,9 +706,9 @@ _sta_               macro
 
 _ldacmp_            macro     [#]Operand1,[#]Operand2
           #ifparm ~#~
-          #ifdef ~#1~
+            #ifdef ~#1~
                     mset      1,~#~{~#1~}
-          #endif
+            #endif
           #endif
           #ifparm ~1~ = #0
                     clra
@@ -719,9 +717,9 @@ _ldacmp_            macro     [#]Operand1,[#]Operand2
           #endif
                     mswap     1,2
           #ifparm ~#~
-          #ifdef ~#1~
+            #ifdef ~#1~
                     mset      1,~#~{~#1~}
-          #endif
+            #endif
           #endif
                     cmpa      ~1~                 ;;needed even when #0 to adjust Carry
                     endm
@@ -802,16 +800,16 @@ lea                 macro
                     ldx       ~1~
                     mexit
           #endif
-    #ifparm ~,1~                                  ;;indexed modes
-          #ifparm ~,1~ = ,x
-            #ifnb ~1,~
+          #ifparm ~,1~                            ;;indexed modes
+            #ifparm ~,1~ = ,x
+              #ifnb ~1,~
                     @aix      #~1,~               ;;X-indexed add possible offset
-            #endif
+              #endif
                     mexit
-          #endif
+            #endif
                     ldx       ~1~                 ;;any other index treat as pointer (regardless of name convention)
                     mexit
-    #endif
+          #endif
                     ldx       #~1~                ;;everything else is fixed RAM
                     endm
 
@@ -826,9 +824,9 @@ gcd                 macro     a,b
                     mexit     1
           #endif
           #if ~1~ = ~2~
-              #ifparm ~label~
+            #ifparm ~label~
 ~label~             set       ~1~
-              #endif
+            #endif
                     mexit     ~1~
           #else if ~1~ > ~2~
                     mset      1,{~1~-{~2~}}
@@ -942,19 +940,19 @@ PushV               macro     variable[ SizeOf(var)][ 'newname']
                     mset      0,~text~,~2~
                     #endif
           #if ~2~ = 1                             ;;single-byte variable case
-          #ifb ~1.1.1~ = .                        ;;but not for pointers
-            #ifparm ~'~,1~'.1.3~ = ,sp            ;;for SP and SPX only
-              #iftos ~1,~                         ;;if at TOS, special case
+            #ifb ~1.1.1~ = .                      ;;but not for pointers
+              #ifparm ~'~,1~'.1.3~ = ,sp          ;;for SP and SPX only
+                #iftos ~1,~                       ;;if at TOS, special case
                     pula                          ;;A = TOS value
                     psha                          ;;put it back the way it was
                     psha      ~text~
                     mexit
+                #endif
               #endif
-            #endif
                     lda       ~1~
                     psha      ~text~
                     mexit
-          #endif
+            #endif
           #endif
                     #push                         ;;save current X offset etc.
           #ifb ~,1~ = ,x                          ;;only if not X-indexed
@@ -994,16 +992,16 @@ PullV               macro     Variable[ SizeOf(Variable)]
           #endif
                     #Message  ~0~ ~1~ ({~2~*8}-bit)
           #if ~2~ = 1                             ;;single-byte variable case
-          #ifb ~1.1.1~ = .                        ;;but not for pointers
-            #ifparm ~'~,1~'.1.3~ = ,sp            ;;for SP and SPX only
-              #iftos ~1,~                         ;;if at TOS, special case
+            #ifb ~1.1.1~ = .                      ;;but not for pointers
+              #ifparm ~'~,1~'.1.3~ = ,sp          ;;for SP and SPX only
+                #iftos ~1,~                       ;;if at TOS, special case
                     mstop     ~0~ to same stack location!
+                #endif
               #endif
-            #endif
                     pula
                     sta       ~1~
                     mexit
-          #endif
+            #endif
           #endif
                     #push                         ;;save current X offset etc.
           #ifb ~,1~ = ,x                          ;;only if not X-indexed
@@ -1069,8 +1067,7 @@ Loop$$$
                     psha
                     lda       #::~1,~
                     ldx       ~1~
-Loop$$$
-                    clr       ,x
+Loop$$$             clr       ,x
                     inx
                     deca
                     bne       Loop$$$
@@ -1102,7 +1099,7 @@ clr.s               macro     Variable
                     mreq      1
                     @@_nosize_ ~1~
           #ifb ~,1~
-          #ifnz ]~1~
+            #ifnz ]~1~
                     psha
                     clra
                     mdo
@@ -1110,7 +1107,7 @@ clr.s               macro     Variable
                     mloop     {::~1,~}
                     pula
                     mexit
-          #endif
+            #endif
           #endif
                     mdo
                     clr       ~1,~+{:mloop-1}~,1~
@@ -1154,7 +1151,7 @@ com.s               macro     Variable
                     mreq      1
                     @@_nosize_ ~1~
           #ifb ~,1~
-          #ifnz ]~1~
+            #ifnz ]~1~
                     psha
                     mdo
                     lda       ~1,~+{:mloop-1}~,1~
@@ -1163,7 +1160,7 @@ com.s               macro     Variable
                     mloop     {::~1,~}
                     pula
                     mexit
-          #endif
+            #endif
           #endif
                     mdo
                     com       ~1,~+{:mloop-1}~,1~
@@ -1643,15 +1640,15 @@ Done$$$
 _FindStkMth_        macro     BitVersion
                     #temp
                     mdo       ~1~/8               ;;find the next highest bit version included (but not less than requested)
-            #ifdef _STKMTH{:mloop*8}_
-              #ifz :temp
-                    #temp     :mloop*8            ;;found
-              #endif
-            #endif
-                    mloop     8                   ;;highest possible is 64 (8x8)
+          #ifdef _STKMTH{:mloop*8}_
             #ifz :temp
-                    mstop     Include STKMTH{~1~}.SUB (or higher)
+                    #temp     :mloop*8            ;;found
             #endif
+          #endif
+                    mloop     8                   ;;highest possible is 64 (8x8)
+          #ifz :temp
+                    mstop     Include STKMTH{~1~}.SUB (or higher)
+          #endif
                     mexit     :temp
                     endm
 ;-------------------------------------------------------------------------------
@@ -2264,9 +2261,7 @@ ASCII_RS            def       30                  ;Record Separator
 ASCII_US            def       31                  ;Unit Separator
 
 DDR                 def       1                   ;standard DDR offset
-;-------------------------------------------------------------------------------
-;                             Miscellaneous
-;-------------------------------------------------------------------------------
+          ;-------------------------------------- ;Miscellaneous
 SPEED_SIZE          def       2                   ;1 = SPEED, 2 = SIZE optimization
                     @ConstMinMax SPEED_SIZE,1,2
 
@@ -2343,7 +2338,6 @@ MAX_OS_CALLS        def       200                 ;default room for OS calls (68
           #else
                     #Message  REQUIRED_STACK: None!
           #endif
-
           #ifdef DEBUG
                     #Message  DEBUG/SIMULATOR mode (do NOT distribute)
           #endif

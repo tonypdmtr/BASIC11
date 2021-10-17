@@ -35,12 +35,12 @@ EEPROM              def       BOOTEEPROM_END
           #endif
 EEPROM              def       $0E00               ;Start of EEPROM
 EEPROM_END          equ       EEPROM+511          ;End of EEPROM
-#ifz REGS
-          #if RAM <> $1000
+          #ifz REGS
+            #if RAM <> $1000
 XRAM                def       $1000               ;External RAM
-          #endif
+            #endif
 XRAM                def       RAM_END+1           ;External RAM
-#endif
+          #endif
 XRAM                def       $1060               ;External RAM
 
 XRAM_END            equ       $7FFF
@@ -68,9 +68,7 @@ RESERVED_VECTORS    equ       $FFC0               ;Reserved vectors (22 bytes)
                     #XRAM     XRAM
                     #EEPROM   EEPROM
                     #ROM      ROM
-
-; Register definitions
-
+          ;-------------------------------------- ;Register definitions
 PORTA               equ       REGS+$00,1          ;Port A Data
 DDRA                equ       REGS+$01,1          ;Data Direction Register A
 PORTG               equ       REGS+$02,1          ;Port G Data
