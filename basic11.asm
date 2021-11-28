@@ -6976,7 +6976,7 @@ DFLOPADR            dw        $4000               ;Address of flip-flop used to 
                     #temp2    $39D0
             #endif
           #endif
-                    #Hint     Verification~'..................................................................................................................................'.1.{:width-74}~ {:temp} bytes, RAM:   {:temp1}, CRC: {:temp2(h)}
+                    #Hint     Verification {:temp} bytes, RAM:   {:temp1}, CRC: {:temp2(h)}
                     endm
 
                     @?
